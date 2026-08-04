@@ -20,6 +20,11 @@
   function createLineage() {
     const people = new Map();   // id -> person
 
+    /* ความสัมพันธ์ลับ — ผูกใครกับใครก็ได้ ไม่จำกัดว่าต้องโสดหรือคนละรุ่น
+     * เก็บเป็นคู่ที่เรียงคีย์แล้ว กันบันทึกซ้ำสองทิศทาง
+     * ผลของมันต่อเกมยังไม่ได้ออกแบบ ตอนนี้มีแค่การมีอยู่และการแสดงผล */
+    const secrets = new Map();  // "idA::idB" -> { aId, bId, sinceMonth }
+
     function add(person) {
       people.set(person.id, person);
       return person;
@@ -57,6 +62,38 @@
       p.deathAge = p.age;
       p.income = 0;
       return p;
+    }
+
+    /* ------------------- ความสัมพันธ์ลับ ------------------- */
+
+    function secretKey(a, b) { return [a, b].sort().join('::'); }
+
+    function hasSecret(aId, bId) { return secrets.has(secretKey(aId, bId)); }
+
+    function addSecret(aId, bId, month) {
+      const k = secretKey(aId, bId);
+      if (secrets.has(k)) return null;
+      const rec = { aId, bId, sinceMonth: month };
+      secrets.set(k, rec);
+      return rec;
+    }
+
+    /** คู่ลับทั้งหมดที่ทั้งสองฝ่ายยังมีชีวิตอยู่ (คนตายแล้วไม่ต้องลากเส้น) */
+    function activeSecrets() {
+      const out = [];
+      secrets.forEach((r) => {
+        const a = get(r.aId), b = get(r.bId);
+        if (a && b && a.alive && b.alive) out.push(r);
+      });
+      return out;
+    }
+
+    /** คู่ลับของคนคนหนึ่ง คืนเป็นรายการ person */
+    function secretsOf(id) {
+      return activeSecrets()
+        .filter((r) => r.aId === id || r.bId === id)
+        .map((r) => get(r.aId === id ? r.bId : r.aId))
+        .filter(Boolean);
     }
 
     /* ------------------- คำนวณรุ่น ------------------- */
@@ -136,6 +173,7 @@
       people, add, get, all, living,
       spouseOf, childrenOf, fatherOf, motherOf,
       marry, birth, die,
+      hasSecret, addSecret, activeSecrets, secretsOf,
       generationOf, maxGeneration, buildTree,
       monthlyIncome, stats,
     };

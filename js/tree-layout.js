@@ -66,12 +66,21 @@
   function place(node, left, top) {
     node.top = top;
     node.coupleX = left + (node.w - node.coupleW) / 2;  // คู่สมรสอยู่กึ่งกลางกิ่ง
-    node.cx = node.coupleX + node.coupleW / 2;          // จุดต่อเส้นของกิ่งนี้
     node.bottom = top + M.CARD_H;
 
     // การ์ดของเจ้าตัวและคู่ครอง
     node.personX = node.coupleX;
     node.spouseX = node.spouse ? node.coupleX + M.CARD_W + M.KNOT_W : null;
+
+    /* จุดต่อเส้นมีสองแบบ และต้องแยกกันให้ชัด
+     * cx      — กึ่งกลางกล่องคู่ ใช้เป็นจุด "ออก" ของเส้นที่ลงไปหาลูก
+     *           เพราะลูกเป็นของทั้งคู่
+     * bloodCx — กึ่งกลางการ์ดของคนที่เป็นสายเลือด ใช้เป็นจุด "เข้า" ของเส้น
+     *           ที่ลงมาจากพ่อแม่ เส้นจึงชี้ตรงไปที่ตัวลูกจริงๆ
+     *           ถ้าใช้ cx เป็นจุดเข้าด้วย เส้นจะไปจ่อกลางระหว่างสองคน
+     *           แล้วดูไม่ออกว่าใครเป็นลูกใครแต่งเข้ามา */
+    node.cx = node.coupleX + node.coupleW / 2;
+    node.bloodCx = node.personX + M.CARD_W / 2;
 
     // วางลูกเรียงกันให้แถวลูกอยู่กึ่งกลางกิ่งเช่นกัน
     let x = left + (node.w - node.kidsW) / 2;
@@ -100,13 +109,17 @@
     const links = [];
     let maxRight = 0, maxBottom = 0;
 
+    const posOf = {};   // id -> จุดกึ่งกลางการ์ด ใช้วาดเส้นความสัมพันธ์ลับ
+
     function walk(node) {
       nodes.push({ person: node.person, x: node.personX, y: node.top });
+      posOf[node.person.id] = { x: node.bloodCx, y: node.top + M.CARD_H / 2 };
       maxRight = Math.max(maxRight, node.personX + M.CARD_W);
       maxBottom = Math.max(maxBottom, node.bottom);
 
       if (node.spouse) {
         nodes.push({ person: node.spouse, x: node.spouseX, y: node.top });
+        posOf[node.spouse.id] = { x: node.spouseX + M.CARD_W / 2, y: node.top + M.CARD_H / 2 };
         knots.push({ x: node.coupleX + M.CARD_W, y: node.top + M.CARD_H / 2 });
         maxRight = Math.max(maxRight, node.spouseX + M.CARD_W);
       }
@@ -114,22 +127,22 @@
       if (!node.kids.length) return;
 
       const midY = node.bottom + M.V_GAP / 2;
-      // เส้นตั้งจากคู่พ่อแม่ลงมาถึงระดับกลาง
+      // เส้นตั้ง "ออก" จากกึ่งกลางคู่พ่อแม่ลงมาถึงระดับกลาง
       links.push({ x1: node.cx, y1: node.bottom, x2: node.cx, y2: midY });
 
       // เส้นนอน — คลุมทั้งลูกทุกคนและจุดของพ่อแม่
       // ถ้าไม่คลุมจุดพ่อแม่ด้วย กรณีลูกคนเดียวที่แต่งงานแล้ว (กิ่งกว้างขึ้น
       // จนกึ่งกลางเยื้อง) เส้นตั้งสองท่อนจะอยู่คนละแกนและลอยห่างกัน
-      const xs = node.kids.map((k) => k.cx).concat([node.cx]);
+      const xs = node.kids.map((k) => k.bloodCx).concat([node.cx]);
       const minX = Math.min.apply(null, xs);
       const maxX = Math.max.apply(null, xs);
       if (maxX - minX > 0.5) {
         links.push({ x1: minX, y1: midY, x2: maxX, y2: midY });
       }
 
-      // เส้นตั้งจากระดับกลางลงหาลูกแต่ละคน
+      // เส้นตั้ง "เข้า" ที่การ์ดของลูกสายเลือดโดยตรง ไม่ใช่กึ่งกลางกล่องคู่
       node.kids.forEach((k) => {
-        links.push({ x1: k.cx, y1: midY, x2: k.cx, y2: k.top });
+        links.push({ x1: k.bloodCx, y1: midY, x2: k.bloodCx, y2: k.top });
         walk(k);
       });
     }
@@ -137,12 +150,27 @@
     roots.forEach(walk);
 
     return {
-      nodes, knots, links,
+      nodes, knots, links, posOf,
       width: maxRight + M.PAD,
       height: maxBottom + M.PAD,
       metrics: M,
     };
   }
 
-  root.TreeLayout = { layout, measure, place, metrics: M };
+  /**
+   * เส้นความสัมพันธ์ลับ — ลากตรงจากกึ่งกลางการ์ดหนึ่งไปอีกการ์ดหนึ่ง
+   * เป็นเส้นเฉียงได้ เพราะคู่ลับอาจอยู่คนละรุ่นคนละกิ่ง
+   * pairs: [{ aId, bId }]  posOf: ผลจาก layout()
+   */
+  function secretLinks(pairs, posOf) {
+    return pairs.map((p) => {
+      const a = posOf[p.aId], b = posOf[p.bId];
+      if (!a || !b) return null;
+      return { x1: a.x, y1: a.y, x2: b.x, y2: b.y, aId: p.aId, bId: p.bId };
+    }).filter(Boolean);
+  }
+
+  root.TreeLayoutSecrets = secretLinks;
+
+  root.TreeLayout = { layout, secretLinks, measure, place, metrics: M };
 })(typeof self !== 'undefined' ? self : this);

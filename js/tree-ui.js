@@ -89,6 +89,12 @@
         .map((s) => `M${s.x1} ${s.y1}L${s.x2} ${s.y2}`)
         .join(' ');
 
+      // เส้นความสัมพันธ์ลับ — เส้นปะลากตรง อาจเฉียงข้ามรุ่นได้
+      // อยู่ใน svg เดียวกันซึ่ง z-index ต่ำกว่าการ์ด เส้นจึงลอดใต้การ์ดเสมอ
+      const secretPath = TL.secretLinks(lineage.activeSecrets(), L.posOf)
+        .map((s) => `M${s.x1} ${s.y1}L${s.x2} ${s.y2}`)
+        .join(' ');
+
       const knots = L.knots.map((k) =>
         `<span class="knot" style="left:${k.x}px;top:${k.y - 1}px"></span>`).join('');
 
@@ -99,8 +105,11 @@
       host.innerHTML =
         `<svg class="tree-links" xmlns="http://www.w3.org/2000/svg" ` +
         `width="${L.width}" height="${L.height}" viewBox="0 0 ${L.width} ${L.height}">` +
-        `<path vector-effect="non-scaling-stroke" d="${path}"></path></svg>` +
-        knots + cards;
+        `<path class="link-line" vector-effect="non-scaling-stroke" d="${path}"></path>` +
+        (secretPath
+          ? `<path class="link-secret" vector-effect="non-scaling-stroke" d="${secretPath}"></path>`
+          : '') +
+        `</svg>` + knots + cards;
     }
 
     /** อัปเดตเฉพาะตัวเลขบนการ์ด โดยไม่วาดผังใหม่ทั้งหมด

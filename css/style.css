@@ -220,22 +220,24 @@ main {
   pointer-events: none; overflow: visible; z-index: 0;
 }
 .tree-links path {
-  fill: none; stroke: var(--connector);
-  stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter;
-  /* คงความหนาเส้นไว้ 2px บนหน้าจอเสมอ ไม่ให้ถูกย่อไปตาม scale() ของผัง
+  fill: none; stroke-linecap: square; stroke-linejoin: miter;
+  /* คงความหนาเส้นไว้เท่าเดิมบนหน้าจอเสมอ ไม่ให้ถูกย่อไปตาม scale() ของผัง
      ถ้าไม่ใส่ พอย่อเหลือ 43% เส้นจะบางเหลือ 0.86px จนแทบมองไม่เห็น */
   vector-effect: non-scaling-stroke;
 }
+.tree-links .link-line { stroke: var(--connector); stroke-width: 2; }
 
-/* ปมเส้นระหว่างคู่สมรส */
+/* ความสัมพันธ์ลับ — เส้นปะสีชาด ลากตรงข้ามรุ่นข้ามกิ่งได้
+   อยู่ใน svg ที่ z-index ต่ำกว่าการ์ด เส้นจึงลอดใต้การ์ดเสมอ ไม่บังหน้าใคร */
+.tree-links .link-secret {
+  stroke: var(--female); stroke-width: 1.6;
+  stroke-dasharray: 7 5; opacity: .75;
+}
+
+/* เส้นสมรสระหว่างคู่ — เส้นนอนเรียบๆ ไม่มีวงกลม เพื่อไม่ให้สับสนกับจุดต่อเส้นอื่น */
 .knot {
   position: absolute; z-index: 1;
   width: 22px; height: 2px; background: var(--connector);
-}
-.knot::after {
-  content: ''; position: absolute; top: -4px; left: 50%; margin-left: -5px;
-  width: 10px; height: 10px; background: var(--ground);
-  border: 2px solid var(--connector); border-radius: 50%;
 }
 
 /* =============================================================================
@@ -427,6 +429,11 @@ main {
 .kin-dot.female { background: var(--female); }
 .kin-age { color: var(--ink-dim); font-size: 11px; }
 .kin-none { color: var(--ink-dim); font-size: 12.5px; }
+/* ความสัมพันธ์ลับในแผ่นข้อมูล */
+.detail-secret { margin-top: 14px; }
+.detail-secret h4 { color: var(--female); border-bottom-color: var(--female); }
+.detail-secret .kin { border-style: dashed; border-color: var(--female); }
+.entry.secret { border-left-color: var(--female); border-left-style: dashed; }
 
 /* =============================================================================
  * กล่องตัดสินใจ — โผล่กลางจอและหยุดเวลาไว้จนกว่าจะเลือก

@@ -108,6 +108,7 @@
       const mother = p.motherId ? lineage.get(p.motherId) : null;
       const spouse = p.spouseId ? lineage.get(p.spouseId) : null;
       const kids = p.childIds.map(lineage.get).filter(Boolean);
+      const secrets = lineage.secretsOf(p.id);
       const adult = p.age >= CONFIG.adultAge;
 
       const bodyBlock = adult
@@ -157,6 +158,13 @@
               <div class="kin-list">${kids.length ? kids.map(nameChip).join('') : '<span class="kin-none">ยังไม่มีบุตร</span>'}</div>
             </div>
           </section>
+
+          ${secrets.length ? `
+          <section class="detail-secret">
+            <h4>ความสัมพันธ์ลับ</h4>
+            <div class="kin-list">${secrets.map(nameChip).join('')}</div>
+            <p class="detail-note">ผลต่อเกม — ยังคิดไม่ออก</p>
+          </section>` : ''}
         </div>`;
 
       host.classList.add('show');

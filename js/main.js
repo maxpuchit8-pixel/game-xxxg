@@ -306,6 +306,39 @@
     });
   }
 
+  /**
+   * สุ่มให้เกิดความสัมพันธ์ลับระหว่างคนสองคน
+   *
+   * ผูกกับใครก็ได้ ไม่จำกัดว่าต้องโสดหรือรุ่นเดียวกัน แต่เว้นคู่ที่เป็นสายเลือด
+   * เดียวกันไว้ ให้สอดคล้องกับกติกาที่ใช้กับเรื่องชู้สาวส่วนอื่นของเกมอยู่แล้ว
+   *
+   * ผลของมันต่อเกม (ชื่อเสียง ทายาทลับ การถูกจับได้ ฯลฯ) ยังไม่ได้ออกแบบ
+   * ตอนนี้จึงมีแค่การเกิดขึ้น การบันทึก และการวาดเป็นเส้นปะในผัง
+   */
+  function rollSecrets() {
+    if (Math.random() >= CONFIG.secretChancePerMonth) return;
+
+    const adults = lineage.living().filter((p) => p.age >= CONFIG.adultAge);
+    if (adults.length < 2) return;
+
+    const a = P.pick(adults);
+    const candidates = adults.filter((b) =>
+      b.id !== a.id &&
+      !(a.isBlood && b.isBlood) &&          // เว้นคู่สายเลือดเดียวกัน
+      b.id !== a.spouseId &&                // คู่สมรสตัวเองไม่นับว่าลับ
+      !lineage.hasSecret(a.id, b.id)
+    );
+    if (!candidates.length) return;
+
+    const b = P.pick(candidates);
+    lineage.addSecret(a.id, b.id, game.state.month);
+    structureDirty = true;
+    ui.logEvent(
+      `มีข่าวลือว่า${a.name}กับ${b.name}สนิทสนมกันเกินปกติ แต่ยังไม่มีใครยืนยันได้`,
+      'secret'
+    );
+  }
+
   /** เหตุการณ์บรรยากาศจากคลังคำของ ScenarioEngine */
   function rollAmbient() {
     if (Math.random() >= CONFIG.ambientEventChance) return;
@@ -417,6 +450,7 @@
     rollMarriages();
     rollBirths();
     rollDeaths();
+    rollSecrets();
     rollAmbient();
     rollChoiceEvent();
 
