@@ -245,21 +245,36 @@
 
   /** ให้กำเนิดบุตรและบันทึกจดหมายเหตุ — opts.secret = บุตรลับจากคู่ลับ */
   function completeBirth(father, mother, opts) {
-    const baby = lineage.birth(father, mother);
+    const secret = !!(opts && opts.secret);
+    const baby = secret ? lineage.birthSecret(father, mother) : lineage.birth(father, mother);
     if (!baby) return null;
     register(baby);
     baby.bornMonth = game.state.month;
     baby.age = 0;
     linkBlood(baby);
     structureDirty = true;
-    if (opts && opts.secret) {
-      // บุตรลับไม่เพิ่มชื่อเสียง — ไม่มีใครกล้าป่าวประกาศ
-      baby.secretChild = true;
-      ui.logEvent(
-        `ในความเงียบงัน ${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
-        `— น้อยคนนักที่รู้ว่าบิดาแท้จริงคือ${father.name}`,
-        'secret'
-      );
+    if (secret) {
+      const husband = mother.spouseId ? lineage.get(mother.spouseId) : null;
+      if (husband) {
+        // โลกภายนอกเห็นเป็นข่าวดีธรรมดาของสามีภรรยา — ชื่อเสียงเพิ่มตามปกติ
+        game.addReputation(2);
+        ui.logEvent(
+          `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
+          `บุตรของ${husband.name}และ${mother.name}`,
+          'birth'
+        );
+        ui.logEvent(
+          `แต่มีเพียง${mother.name}ที่รู้ว่าบิดาแท้จริงของ${baby.name}คือ${father.name} ` +
+          `— แม้แต่${father.name}เองก็ไม่รู้`,
+          'secret'
+        );
+      } else {
+        ui.logEvent(
+          `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
+          `โดยไม่ยอมเปิดเผยว่าบิดาคือผู้ใด — ความจริงมีเพียงนางที่รู้ว่าคือ${father.name}`,
+          'secret'
+        );
+      }
     } else {
       game.addReputation(2);
       ui.logEvent(
@@ -611,7 +626,8 @@
     if (father.gender !== 'male' || mother.gender !== 'female') return null;
     // เคารพกติกาการมีบุตรปกติ — แม่ต้องอยู่ในวัยเจริญพันธุ์ (เพดานบุตรเช็คใน birth)
     if (mother.age < CONFIG.fertileMin || mother.age > CONFIG.fertileMax) return null;
-    return completeBirth(father, mother);
+    // บุตรจากชู้รัก/คู่กรณีเป็นบุตรลับเสมอ — โลกรู้แค่ตามทะเบียน
+    return completeBirth(father, mother, { secret: source !== 'spouse' });
   }
 
   /** ประมวลผลตัวเลือกที่ผู้เล่นกดในอีเวนต์รูปโฉม */

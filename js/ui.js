@@ -109,6 +109,10 @@
       const spouse = p.spouseId ? lineage.get(p.spouseId) : null;
       const kids = p.childIds.map(lineage.get).filter(Boolean);
       const secrets = lineage.secretsOf(p.id);
+      // ความจริงที่ตัวละครไม่รู้ แต่ผู้เล่นเห็น: พ่อแท้จริงของบุตรลับ
+      // และรายชื่อลูกที่ชู้รักไม่รู้ว่าเป็นเลือดเนื้อของตน
+      const trueFather = p.trueFatherId ? lineage.get(p.trueFatherId) : null;
+      const hiddenKids = lineage.all().filter((k) => k.trueFatherId === p.id);
       const adult = p.age >= CONFIG.adultAge;
 
       const bodyBlock = adult
@@ -177,6 +181,7 @@
           <section class="detail-kin">
             <h4>เครือญาติ</h4>
             ${row('บิดา', nameChip(father))}
+            ${trueFather ? row('บิดาแท้จริง (ไม่มีผู้ใดรู้)', nameChip(trueFather)) : ''}
             ${row('มารดา', nameChip(mother))}
             ${row('คู่ครอง', spouse ? nameChip(spouse) : (adult ? '<span class="kin-none">ยังไม่มีคู่</span>' : '<span class="kin-none">—</span>'))}
             <div class="detail-row kids"><span>บุตร (${kids.length})</span>
@@ -184,12 +189,17 @@
             </div>
           </section>
 
-          ${secrets.length ? `
+          ${(secrets.length || hiddenKids.length) ? `
           <section class="detail-secret">
             <h4>ความสัมพันธ์ลับ</h4>
-            <div class="kin-list">${secrets.map(nameChip).join('')}</div>
-            <p class="detail-note">แอบคบกันอยู่ — อาจลอบพบกัน อาจเกิดบุตรลับ (บุตรจะอยู่กิ่งของฝ่ายแม่
-              พร้อมเส้นปะบอกพ่อแท้จริง) และเสี่ยงถูกจับได้จนตระกูลเสื่อมเสีย</p>
+            ${secrets.length ? `<div class="kin-list">${secrets.map(nameChip).join('')}</div>` : ''}
+            ${hiddenKids.length ? `
+            <div class="detail-row kids"><span>บุตรที่ตนไม่รู้ว่ามี (${hiddenKids.length})</span>
+              <div class="kin-list">${hiddenKids.map(nameChip).join('')}</div>
+            </div>` : ''}
+            <p class="detail-note">แอบคบกันอยู่ — อาจลอบพบกัน อาจเกิดบุตรลับ (โลกจะเชื่อว่าเป็นบุตร
+              ของสามี ชู้รักและตัวบุตรเองไม่มีวันรู้ มีเพียงเส้นปะที่บอกความจริงแก่ท่าน)
+              และเสี่ยงถูกจับได้จนตระกูลเสื่อมเสีย</p>
           </section>` : ''}
         </div>`;
 

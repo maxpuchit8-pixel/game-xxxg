@@ -96,8 +96,8 @@
       // อยู่ใน svg เดียวกันซึ่ง z-index ต่ำกว่าการ์ด เส้นจึงลอดใต้การ์ดเสมอ
       const secretPairs = lineage.activeSecrets().concat(
         lineage.all()
-          .filter((k) => k.secretChild && k.fatherId)
-          .map((k) => ({ aId: k.fatherId, bId: k.id })));
+          .filter((k) => k.trueFatherId)
+          .map((k) => ({ aId: k.trueFatherId, bId: k.id })));
       const secretPath = TL.secretLinks(secretPairs, L.posOf)
         .map((s) => `M${s.x1} ${s.y1}L${s.x2} ${s.y2}`)
         .join(' ');

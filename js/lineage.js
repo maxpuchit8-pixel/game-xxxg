@@ -59,6 +59,34 @@
       return baby;
     }
 
+    /**
+     * กำเนิดบุตรลับ — แยก "ความจริง" ออกจาก "สิ่งที่โลกรู้"
+     *   - พันธุกรรมมาจากพ่อแท้จริง (realFather) แต่สแตมป์ไว้ใน trueFatherId เท่านั้น
+     *     ไม่มีตัวละครใดรู้ แม้แต่ชู้รักเองและตัวลูก
+     *   - แม่มีสามี: ทางทะเบียนลูกเป็นบุตรของสามี (fatherId = สามี) สามีเลี้ยงดู
+     *     โดยไม่รู้ตัว / แม่ไม่มีสามี: โลกไม่รู้ว่าบิดาคือผู้ใด (fatherId = null)
+     *   - ญาติสายตรงเช็คจาก fatherId ทางทะเบียนโดยเจตนา — พี่น้องร่วมพ่อแท้จริง
+     *     ที่ไม่รู้จักกันจึงอาจแอบคบกันเองได้ เป็นละครน้ำเน่าที่ตั้งใจเปิดช่องไว้
+     */
+    function birthSecret(realFather, mother) {
+      if (!realFather || !mother) return null;
+      if (mother.childIds.length >= CONFIG.maxChildren) return null;
+      const baby = P.createChild(realFather, mother);
+      baby.secretChild = true;
+      baby.trueFatherId = realFather.id;
+      const husband = mother.spouseId ? get(mother.spouseId) : null;
+      if (husband && husband.gender === 'male') {
+        baby.fatherId = husband.id;        // โลกเชื่อว่าเป็นลูกของสามี
+        husband.childIds.push(baby.id);
+      } else {
+        baby.fatherId = null;              // แม่ไม่เปิดเผยว่าบิดาคือผู้ใด
+      }
+      add(baby);
+      mother.childIds.push(baby.id);
+      P.applyMotherhood(mother);
+      return baby;
+    }
+
     function die(p) {
       p.alive = false;
       p.deathAge = p.age;
@@ -206,7 +234,7 @@
     return {
       people, add, get, all, living,
       spouseOf, childrenOf, fatherOf, motherOf,
-      marry, birth, die,
+      marry, birth, birthSecret, die,
       hasSecret, addSecret, activeSecrets, secretsOf, isDirectLine,
       generationOf, maxGeneration, buildTree,
       monthlyIncome, stats,
