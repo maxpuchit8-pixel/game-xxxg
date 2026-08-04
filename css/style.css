@@ -1,212 +1,420 @@
-/* =============================================================================
- * style.css — ธีม "สมุดไทยดำ / สมุดไทยขาว" ของเกมสายใยตระกูล
+﻿/* =============================================================================
+ * style.css — ธีม "นครอนาคต" ของเกมสายใยตระกูล
+ * -----------------------------------------------------------------------------
+ * ชุดสีอิงจอควบคุมในนครอนาคต: พื้นน้ำเงินเข้มเกือบดำ ขับด้วยสีเหลืองอำพัน
+ * ของแกนพลังงาน ส่วนสีประจำเพศเป็นคู่ตรงข้ามที่อ่านออกทันทีบนพื้นมืด
+ *   ชาย  = ฟ้าพลาสมา
+ *   หญิง = ชมพูแมกเจนตา
  * โทเคนสีทั้งหมดอยู่ที่ :root — เปลี่ยนธีมทั้งเกมได้จากบล็อกบนสุดนี้
  * ========================================================================== */
 
-/* ============ โทเคนสี: สมุดไทยขาว (สว่าง, ค่าตั้งต้น) ============ */
+/* ============ โหมดสว่าง — จอควบคุมกลางวัน ============ */
 :root {
-  --ground: #f2e9d4;      /* กระดาษข่อยขาว */
-  --surface: #e9ddc2;
-  --surface-2: #e0d2b3;
-  --line: #c9b68d;
-  --ink: #4a3826;         /* หมึกน้ำตาล */
-  --ink-dim: #7a6a52;
-  --gold: #8a6a1f;        /* หรดาลบนพื้นสว่าง = ทองเข้ม */
-  --gold-bright: #a37c1e;
-  --chad: #b23c1e;        /* ชาดแดง */
-  --jade: #4f7a42;
-  --chip-bg: #ddceac;
-  --btn-ink: #f6efdd;
-  --shadow: 0 2px 10px rgba(74, 56, 38, .18);
+  --ground: #eef1f7;
+  --surface: #e2e7f0;
+  --surface-2: #d5dce8;
+  --line: #b3bed1;
+  --ink: #1e2a3d;
+  --ink-dim: #5d6b82;
+  --gold: #a86c0b;          /* อำพันแกนพลังงาน */
+  --gold-bright: #c07f10;
+
+  --male: #1f63b8;          /* ฟ้าพลาสมา */
+  --male-soft: #dbe7f8;
+  --female: #b62d5c;        /* ชมพูแมกเจนตา */
+  --female-soft: #f8dde6;
+
+  --jade: #2f7d5e;
+  --chip-bg: #d5dce8;
+  --btn-ink: #f7f9fc;
+  --shadow: 0 1px 6px rgba(30, 42, 61, .14);
 }
 
-/* ============ สมุดไทยดำ (มืด) — ตาม OS และตามสวิตช์ธีมของผู้ชม ============ */
+/* ============ โหมดมืด — จอควบคุมกลางคืน (ค่าหลักของธีม) ============ */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #1b1613;
-    --surface: #28211a;
-    --surface-2: #322921;
-    --line: #4a3c2c;
-    --ink: #d8ccb2;
-    --ink-dim: #9c8c70;
-    --gold: #e0c069;
-    --gold-bright: #efd07a;
-    --chad: #d0603c;
-    --jade: #8aa87b;
-    --chip-bg: #382e23;
-    --btn-ink: #221b14;
-    --shadow: 0 2px 12px rgba(0, 0, 0, .45);
+    --ground: #0b1220;
+    --surface: #131d31;
+    --surface-2: #1c2942;
+    --line: #2e3f5e;
+    --ink: #d7e3f4;
+    --ink-dim: #8295b3;
+    --gold: #f2b544;
+    --gold-bright: #ffc963;
+
+    --male: #4da3f5;
+    --male-soft: #132740;
+    --female: #ff5c8a;
+    --female-soft: #35182a;
+
+    --jade: #3fd39b;
+    --chip-bg: #1c2942;
+    --btn-ink: #0b1220;
+    --shadow: 0 1px 10px rgba(0, 0, 0, .55);
   }
 }
 :root[data-theme="dark"] {
-  --ground: #1b1613; --surface: #28211a; --surface-2: #322921; --line: #4a3c2c;
-  --ink: #d8ccb2; --ink-dim: #9c8c70; --gold: #e0c069; --gold-bright: #efd07a;
-  --chad: #d0603c; --jade: #8aa87b; --chip-bg: #382e23; --btn-ink: #221b14;
-  --shadow: 0 2px 12px rgba(0, 0, 0, .45);
+  --ground: #0b1220; --surface: #131d31; --surface-2: #1c2942; --line: #2e3f5e;
+  --ink: #d7e3f4; --ink-dim: #8295b3; --gold: #f2b544; --gold-bright: #ffc963;
+  --male: #4da3f5; --male-soft: #132740; --female: #ff5c8a; --female-soft: #35182a;
+  --jade: #3fd39b; --chip-bg: #1c2942; --btn-ink: #0b1220;
+  --shadow: 0 1px 10px rgba(0, 0, 0, .55);
 }
 :root[data-theme="light"] {
-  --ground: #f2e9d4; --surface: #e9ddc2; --surface-2: #e0d2b3; --line: #c9b68d;
-  --ink: #4a3826; --ink-dim: #7a6a52; --gold: #8a6a1f; --gold-bright: #a37c1e;
-  --chad: #b23c1e; --jade: #4f7a42; --chip-bg: #ddceac; --btn-ink: #f6efdd;
-  --shadow: 0 2px 10px rgba(74, 56, 38, .18);
+  --ground: #eef1f7; --surface: #e2e7f0; --surface-2: #d5dce8; --line: #b3bed1;
+  --ink: #1e2a3d; --ink-dim: #5d6b82; --gold: #a86c0b; --gold-bright: #c07f10;
+  --male: #1f63b8; --male-soft: #dbe7f8; --female: #b62d5c; --female-soft: #f8dde6;
+  --jade: #2f7d5e; --chip-bg: #d5dce8; --btn-ink: #f7f9fc;
+  --shadow: 0 1px 6px rgba(30, 42, 61, .14);
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; }
+html, body { margin: 0; height: 100%; }
 body {
   background: var(--ground);
   color: var(--ink);
   font-family: 'Leelawadee UI', 'Sarabun', 'Tahoma', sans-serif;
   font-size: 15px;
-  line-height: 1.65;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
+/* หัวเรื่องใช้ฟอนต์ไทยแบบไม่มีเชิงที่กระชับ ขับด้วยการบีบช่องไฟให้ดูเป็นจอควบคุม */
 .display {
-  font-family: 'Angsana New', 'AngsanaUPC', 'Cordia New', 'Leelawadee UI', serif;
+  font-family: 'Kanit', 'Leelawadee UI', 'IBM Plex Sans Thai', 'Sarabun', sans-serif;
   font-weight: 700;
-  letter-spacing: .01em;
+  letter-spacing: -.01em;
 }
 
-/* ============ แถบหัวเรื่อง ============ */
+/* =============================================================================
+ * แถบสถานะด้านบน
+ * ========================================================================== */
 header {
-  border-bottom: 2px solid var(--gold);
+  display: flex; align-items: center; gap: 12px 24px; flex-wrap: wrap;
+  padding: 10px 20px;
   background: var(--surface);
-  padding: 14px 22px 12px;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px;
+  border-bottom: 2px solid var(--gold);
+  position: sticky; top: 0; z-index: 20;
 }
-.title-block { display: flex; align-items: baseline; gap: 14px; }
-h1 {
-  margin: 0; font-size: 40px; line-height: 1.05; color: var(--gold);
-  text-wrap: balance;
-}
-.subtitle { color: var(--ink-dim); font-size: 13px; }
-.stats { display: flex; gap: 18px; margin-left: auto; align-items: center; flex-wrap: wrap; }
-.stat { text-align: right; }
-.stat .label {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-dim);
-}
-.stat .value {
-  font-variant-numeric: tabular-nums; color: var(--gold-bright);
-  font-family: 'Angsana New', serif; font-weight: 700; font-size: 28px; line-height: 1.1;
-}
-.stat .value.rep { color: var(--ink); }
-#dayLabel { color: var(--ink); }
+.brand { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-title { font-size: 30px; color: var(--gold); }
+.brand-date { font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 
-button {
-  font-family: inherit; font-size: 15px; cursor: pointer;
+.hud { display: flex; gap: 22px; flex-wrap: wrap; margin-left: auto; }
+.stat { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.stat-label {
+  font-size: 10.5px; letter-spacing: .06em; color: var(--ink-dim); text-transform: uppercase;
+}
+.stat-value {
+  font-family: 'Kanit', 'Leelawadee UI', 'Sarabun', sans-serif; font-weight: 700; font-size: 25px;
+  color: var(--gold-bright); font-variant-numeric: tabular-nums;
+}
+.income { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.income.pos { color: var(--jade); }
+.income.neg { color: var(--female); }
+
+.clock-controls { display: flex; gap: 8px; }
+.clock-btn {
+  font-family: inherit; cursor: pointer;
+  min-width: 46px; padding: 8px 12px; font-size: 15px;
+  background: var(--gold); color: var(--btn-ink);
   border: 1px solid var(--gold); border-radius: 3px;
-  padding: 9px 20px; background: var(--gold); color: var(--btn-ink);
   transition: filter .12s ease;
 }
-button:hover { filter: brightness(1.08); }
-button:focus-visible { outline: 2px solid var(--chad); outline-offset: 2px; }
-button.secondary { background: transparent; color: var(--gold); }
-button:disabled { opacity: .45; cursor: default; }
-#nextDay { font-weight: 700; font-size: 16px; }
+.clock-btn:hover { filter: brightness(1.08); }
+.clock-btn:focus-visible { outline: 2px solid var(--female); outline-offset: 2px; }
+.clock-btn.speed {
+  background: transparent; color: var(--gold);
+  font-variant-numeric: tabular-nums; font-weight: 700;
+}
 
-/* ============ โครงหลัก ============ */
+/* =============================================================================
+ * โครงหลัก
+ * ========================================================================== */
 main {
-  display: grid; gap: 18px; padding: 18px 22px 40px;
-  grid-template-columns: 300px minmax(0, 1fr) 320px;
-  max-width: 1400px; margin: 0 auto;
+  flex: 1; display: grid; gap: 0;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  min-height: 0;
 }
-@media (max-width: 1080px) {
-  main { grid-template-columns: 280px minmax(0, 1fr); }
-  #relPanel { grid-column: 1 / -1; }
-}
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   main { grid-template-columns: 1fr; }
-  #relPanel { grid-column: auto; }
+  #chroniclePanel { border-left: none; border-top: 1px solid var(--line); max-height: 300px; }
 }
 
-section > h2 {
-  margin: 0 0 10px; font-size: 26px; color: var(--gold);
-  font-family: 'Angsana New', serif; font-weight: 700; line-height: 1.2;
-  border-bottom: 1px solid var(--line); padding-bottom: 4px;
-}
-.hint { font-size: 12.5px; color: var(--ink-dim); margin: 0 0 12px; }
+#treePanel { overflow: auto; padding: 24px 20px 60px; min-width: 0; }
 
-/* ============ ทะเบียนตระกูล ============ */
-.char-card {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
-  padding: 10px 12px; margin-bottom: 10px; box-shadow: var(--shadow);
-}
-.char-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.char-name { font-weight: 700; font-size: 15.5px; }
-.chip {
-  font-size: 11px; padding: 1px 8px; border-radius: 10px;
-  background: var(--chip-bg); color: var(--ink-dim); border: 1px solid var(--line);
-}
-.chip.married { color: var(--chad); border-color: var(--chad); }
-.char-role { font-size: 12.5px; color: var(--ink-dim); margin: 1px 0 7px; }
-.char-card select {
-  width: 100%; font-family: inherit; font-size: 14px; padding: 5px 8px;
-  background: var(--surface-2); color: var(--ink);
-  border: 1px solid var(--line); border-radius: 3px;
-}
-.char-card select:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-
-.actions { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-.actions button { width: 100%; }
-.action-note { font-size: 12px; color: var(--ink-dim); margin: 0; }
-
-/* ============ จดหมายเหตุ ============ */
-#chronicle { min-width: 0; }
 .banner {
-  border: 1px solid var(--chad); background: var(--surface); color: var(--chad);
-  border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; font-weight: 700;
-  display: none;
+  display: none; margin: 0 auto 20px; max-width: 760px;
+  border: 1px solid var(--gold); background: var(--surface);
+  color: var(--gold-bright); font-weight: 700;
+  border-radius: 4px; padding: 10px 16px; text-align: center;
 }
-.banner.gold { border-color: var(--gold); color: var(--gold-bright); }
 .banner.show { display: block; }
 
-.day-group { margin-bottom: 20px; }
-.day-title {
-  font-family: 'Angsana New', serif; font-weight: 700; font-size: 24px;
-  color: var(--gold); margin: 0 0 6px; line-height: 1.2;
+/* =============================================================================
+ * ผังตระกูล — เส้นเชื่อมวาดด้วย CSS ทั้งหมด
+ * ========================================================================== */
+.tree, .children {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; justify-content: center; align-items: flex-start;
+}
+.tree { padding-bottom: 10px; }
+.unit { display: flex; flex-direction: column; align-items: center; position: relative; }
+
+/* ชั้นลูก: เว้นที่ด้านบนไว้วาดเส้นเชื่อม 32px (แกนตั้ง 16 + แกนตั้งลงการ์ด 16) */
+.children { padding-top: 32px; position: relative; }
+.children::before {
+  content: ''; position: absolute; top: 0; left: 50%; margin-left: -1px;
+  width: 2px; height: 16px; background: var(--line);
+}
+.children > .unit { padding: 32px 9px 0; }
+/* เส้นแนวนอนเชื่อมพี่น้อง — แบ่งเป็นครึ่งซ้าย/ครึ่งขวาของแต่ละคน
+   แล้วซ่อนครึ่งนอกสุดของคนแรกกับคนสุดท้าย */
+.children > .unit::before,
+.children > .unit::after {
+  content: ''; position: absolute; top: 16px; width: 50%; height: 2px; background: var(--line);
+}
+.children > .unit::before { left: 0; }
+.children > .unit::after { left: 50%; }
+.children > .unit:first-child::before { display: none; }
+.children > .unit:last-child::after { display: none; }
+/* แกนตั้งจากเส้นแนวนอนลงมาหาการ์ด */
+.children > .unit > .couple { position: relative; }
+.children > .unit > .couple::before {
+  content: ''; position: absolute; top: -16px; left: 50%; margin-left: -1px;
+  width: 2px; height: 16px; background: var(--line);
+}
+/* ลูกคนเดียวไม่ต้องมีเส้นแนวนอน */
+.children > .unit:only-child::before,
+.children > .unit:only-child::after { display: none; }
+
+/* คู่สมรสวางเคียงกัน คั่นด้วยปมเส้น */
+.couple { display: flex; align-items: center; }
+.knot { width: 22px; height: 2px; background: var(--line); flex-shrink: 0; position: relative; }
+.knot::after {
+  content: ''; position: absolute; top: -3px; left: 50%; margin-left: -4px;
+  width: 8px; height: 8px; background: var(--ground);
+  border: 2px solid var(--line); border-radius: 50%;
+}
+
+/* =============================================================================
+ * การ์ดตัวละคร
+ * ========================================================================== */
+.card {
+  width: 134px; padding: 8px 8px 7px; position: relative;
+  border: 2px solid var(--line); border-radius: 6px;
+  background: var(--surface); box-shadow: var(--shadow);
+  text-align: center;
+}
+.card.male   { border-color: var(--male);   background: var(--male-soft); }
+.card.female { border-color: var(--female); background: var(--female-soft); }
+.card.player { box-shadow: 0 0 0 2px var(--gold), var(--shadow); }
+.card.married-in { border-style: dashed; }
+.card.dead { opacity: .5; filter: grayscale(.7); }
+
+.age-badge {
+  position: absolute; top: -9px; left: -7px;
+  min-width: 24px; height: 24px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--ground); border: 2px solid currentColor; border-radius: 12px;
+}
+.card.male .age-badge { color: var(--male); }
+.card.female .age-badge { color: var(--female); }
+
+.you-badge {
+  position: absolute; top: -9px; right: -7px;
+  font-size: 10.5px; font-weight: 700; padding: 1px 7px;
+  background: var(--gold); color: var(--btn-ink); border-radius: 9px;
+}
+
+.card-name {
+  font-weight: 700; font-size: 13.5px; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.portrait { width: 62px; height: 62px; margin: 2px auto 3px; }
+.portrait svg { width: 100%; height: 100%; display: block; }
+
+.card-power {
+  font-size: 10.5px; color: var(--gold-bright); line-height: 1.3;
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+}
+.card-power b { font-size: 12px; }
+
+.card-body {
+  font-size: 10.5px; color: var(--ink-dim); line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.card-origin {
+  font-size: 10px; color: var(--ink-dim); opacity: .85;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-income {
+  margin-top: 3px; font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.card-income.pos { color: var(--jade); }
+.card-income.neg { color: var(--female); }
+.card-income.dead-note { color: var(--ink-dim); font-weight: 400; font-size: 10px; }
+
+/* =============================================================================
+ * จดหมายเหตุ
+ * ========================================================================== */
+#chroniclePanel {
+  border-left: 1px solid var(--line); background: var(--surface);
+  padding: 14px 16px 30px; overflow-y: auto; min-width: 0;
+}
+#chroniclePanel h2 {
+  margin: 0 0 10px; font-size: 24px; color: var(--gold);
+  border-bottom: 1px solid var(--line); padding-bottom: 4px;
 }
 .entry {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
-  padding: 10px 14px 10px 16px; margin-bottom: 8px; position: relative;
-  box-shadow: var(--shadow);
+  border-left: 3px solid var(--line); background: var(--ground);
+  border-radius: 0 4px 4px 0; padding: 6px 10px; margin-bottom: 7px;
+  font-size: 13px; line-height: 1.5;
 }
+.entry.birth { border-left-color: var(--jade); }
+.entry.marriage { border-left-color: var(--female); }
+.entry.death { border-left-color: var(--ink-dim); }
+.entry.milestone { border-left-color: var(--gold); }
+.entry-date {
+  display: block; font-size: 10.5px; color: var(--ink-dim);
+  letter-spacing: .03em; margin-bottom: 1px;
+}
+.entry-text { display: block; }
+.empty-note { color: var(--ink-dim); font-size: 13px; }
+
 @media (prefers-reduced-motion: no-preference) {
-  .entry.fresh { animation: inkin .5s ease; }
+  .entry.fresh { animation: inkin .4s ease; }
   @keyframes inkin {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(-4px); }
     to { opacity: 1; transform: none; }
   }
 }
-.seal {
-  position: absolute; left: -6px; top: 12px; width: 12px; height: 12px;
-  border-radius: 50%; border: 2px solid var(--ground);
-}
-.seal.positive { background: var(--jade); }
-.seal.negative { background: var(--chad); }
-.seal.neutral  { background: var(--ink-dim); }
-.entry .text { margin: 0 0 6px; }
-.entry.special { border-color: var(--chad); }
-.entry.special .text { color: var(--chad); font-weight: 700; }
-.deltas { display: flex; gap: 6px; flex-wrap: wrap; }
-.delta {
-  font-size: 11.5px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line);
-  background: var(--chip-bg); color: var(--ink-dim); font-variant-numeric: tabular-nums;
-}
-.delta.up { color: var(--jade); border-color: var(--jade); }
-.delta.down { color: var(--chad); border-color: var(--chad); }
-.empty-note { color: var(--ink-dim); font-size: 13.5px; }
 
-/* ============ สายสัมพันธ์ ============ */
-.rel {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
-  padding: 9px 12px; margin-bottom: 9px; box-shadow: var(--shadow);
+/* =============================================================================
+ * กล่องตัดสินใจ — โผล่กลางจอและหยุดเวลาไว้จนกว่าจะเลือก
+ * ========================================================================== */
+.decision-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  display: none; align-items: center; justify-content: center;
+  padding: 24px; overflow-y: auto;
+  background: color-mix(in srgb, var(--ground) 78%, transparent);
+  backdrop-filter: blur(2px);
 }
-.rel-names { font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bar-row { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-.bar-label { font-size: 11px; color: var(--ink-dim); width: 44px; flex-shrink: 0; }
-.bar { flex: 1; height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; position: relative; }
-.bar > i { display: block; height: 100%; border-radius: 4px; transition: width .4s ease; }
-.bar.bond > i { background: var(--gold); }
-.bar.bond.neg > i { background: var(--chad); }
-.bar.chem > i { background: var(--chad); }
-.bar-val { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink-dim); width: 30px; text-align: right; flex-shrink: 0; }
+.decision-overlay.show { display: flex; }
+
+.decision-panel {
+  width: 100%; max-width: 430px; text-align: center;
+  background: var(--surface); border: 2px solid var(--gold);
+  border-radius: 6px; padding: 22px 24px 20px;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, .3);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .decision-overlay.show .decision-panel { animation: riseIn .26s ease; }
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(12px) scale(.97); }
+    to { opacity: 1; transform: none; }
+  }
+}
+.decision-panel.marriage { border-color: var(--female); }
+.decision-panel.birth { border-color: var(--jade); }
+
+.decision-title { font-size: 30px; color: var(--gold); margin: 0 0 8px; line-height: 1.15; }
+.decision-panel.marriage .decision-title { color: var(--female); }
+.decision-panel.birth .decision-title { color: var(--jade); }
+
+.decision-portrait {
+  width: 84px; height: 84px; margin: 0 auto 4px;
+  border: 2px solid var(--line); border-radius: 50%; padding: 3px;
+}
+.decision-portrait svg { width: 100%; height: 100%; display: block; }
+.decision-portrait.male { border-color: var(--male); background: var(--male-soft); }
+.decision-portrait.female { border-color: var(--female); background: var(--female-soft); }
+
+.decision-name { font-weight: 700; font-size: 16px; }
+.decision-facts {
+  display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+  margin: 5px 0 2px;
+}
+.decision-facts span {
+  font-size: 11px; color: var(--ink-dim); background: var(--chip-bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 1px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.decision-text {
+  margin: 12px auto 18px; max-width: 42ch;
+  font-size: 14px; line-height: 1.7; color: var(--ink);
+}
+
+.decision-options { display: flex; flex-direction: column; gap: 9px; }
+.decision-btn {
+  font-family: inherit; cursor: pointer; color: inherit; text-align: left;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 10px 14px; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  transition: transform .12s ease, border-color .12s ease;
+}
+.decision-btn:hover { transform: translateX(3px); border-color: var(--gold); }
+.decision-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.decision-btn.accept { border-left: 4px solid var(--jade); }
+.decision-btn.decline { border-left: 4px solid var(--ink-dim); }
+.decision-label { font-weight: 700; font-size: 14.5px; }
+.decision-note { font-size: 11.5px; color: var(--ink-dim); }
+
+/* =============================================================================
+ * หน้าจอเริ่มเกม
+ * ========================================================================== */
+.start-screen {
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--ground);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; overflow-y: auto;
+}
+.start-screen.hidden { display: none; }
+
+.start-panel {
+  max-width: 620px; width: 100%; text-align: center;
+  border: 2px solid var(--gold); border-radius: 6px;
+  background: var(--surface); padding: 30px 28px 26px;
+  box-shadow: var(--shadow);
+}
+
+.logo { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px; }
+.logo-face { width: 60px; height: 60px; border-radius: 50%; border: 2px solid; padding: 2px; }
+.logo-face svg { width: 100%; height: 100%; display: block; }
+.logo-face.male { border-color: var(--male); background: var(--male-soft); }
+.logo-face.female { border-color: var(--female); background: var(--female-soft); }
+.logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+.logo-title { font-size: 46px; color: var(--gold); }
+.logo-sub { font-size: 12.5px; color: var(--ink-dim); letter-spacing: .04em; }
+
+.start-lead {
+  margin: 14px auto 22px; max-width: 46ch;
+  font-size: 14px; color: var(--ink-dim); line-height: 1.7;
+}
+
+.gender-choice { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.gender-btn {
+  font-family: inherit; cursor: pointer; color: inherit;
+  width: 168px; padding: 16px 12px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  border: 2px solid; border-radius: 6px; background: var(--surface-2);
+  transition: transform .14s ease, filter .14s ease;
+}
+.gender-btn.male { border-color: var(--male); background: var(--male-soft); }
+.gender-btn.female { border-color: var(--female); background: var(--female-soft); }
+.gender-btn:hover { transform: translateY(-3px); filter: brightness(1.04); }
+.gender-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.gender-portrait { width: 76px; height: 76px; }
+.gender-portrait svg { width: 100%; height: 100%; display: block; }
+.gender-name { font-family: 'Kanit', 'Leelawadee UI', 'Sarabun', sans-serif; font-weight: 700; font-size: 26px; line-height: 1.1; }
+.gender-btn.male .gender-name { color: var(--male); }
+.gender-btn.female .gender-name { color: var(--female); }
+.gender-note { font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+
+.start-foot {
+  margin: 22px 0 0; font-size: 12px; color: var(--ink-dim);
+  border-top: 1px solid var(--line); padding-top: 12px; line-height: 1.6;
+}
