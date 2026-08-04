@@ -188,6 +188,7 @@
       if (newAge === p.age) return;
       p.age = newAge;
       p.income = P.incomeFor(p);
+      P.refreshBust(p);          // หน้าอกสตรีโตตามวัยจนเต็มศักยภาพพันธุกรรม
       p.power = P.powerFor(p);   // พลังยุทธ์ขึ้นลงตามวัย
       p.charm = P.charmFor(p);   // เสน่ห์พีคช่วงวัยหนุ่มสาวแล้วถดถอย
       if (p.age === CONFIG.adultAge) {

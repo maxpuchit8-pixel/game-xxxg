@@ -111,8 +111,20 @@
       m[key] = Math.round(
         predictMeasure(gender, body, key) + randNormal(0, spec.sd, -spec.sd * 3, spec.sd * 3));
     }
-    if (gender === 'female') m.cup = rollCup(body.bmi);
+    if (gender === 'female') {
+      // สตรีเก็บ "ศักยภาพเต็ม" แยกไว้ ค่าปัจจุบันถูกคิดตามวัยอีกทีใน refreshBust
+      m.chestFull = m.chest;
+      m.cupFull = m.cup = rollCup(body.bmi);
+    }
     return m;
+  }
+
+  /** ความเบี่ยงเบนรอบอกของพ่อ/แม่จากค่าที่คาด (หน่วย sd ของเพศตน) */
+  function chestZOf(p) {
+    if (!p || !p.body || !p.body.measure) return 0;
+    const mm = p.body.measure;
+    const val = mm.chestFull != null ? mm.chestFull : mm.chest;
+    return (val - predictMeasure(p.gender, p.body, 'chest')) / MEASURE[p.gender].chest.sd;
   }
 
   /**
@@ -126,6 +138,7 @@
     const h = MEASURE.heredity;
     const m = {};
     for (const key of MEASURE_KEYS) {
+      if (gender === 'female' && key === 'chest') continue; // อกสตรีใช้กติกามารดาเป็นหลักด้านล่าง
       const spec = MEASURE[gender][key];
       const parentZ = parents.reduce((s, p) =>
         s + (p.body.measure[key] - predictMeasure(p.gender, p.body, key)) / MEASURE[p.gender][key].sd,
@@ -134,33 +147,62 @@
       m[key] = Math.round(predictMeasure(gender, body, key) + z * spec.sd);
     }
     if (gender === 'female') {
-      const c = MEASURE.cup;
-      const momCup = mother && mother.body.measure ? mother.body.measure.cup : null;
-      m.cup = (momCup != null && Math.random() < c.heredity)
-        ? Math.round(clamp(momCup + randNormal(0, 0.8, -2, 2), 0, c.letters.length - 1))
+      /* ศักยภาพหน้าอกอิงมารดาเป็นหลัก บิดาช่วยเสริม drift เฉลี่ยเป็นบวก
+         ลูกสาวส่วนใหญ่จึงถึงหรือเกินระดับมารดา จะด้อยกว่าก็มักเพราะบิดาไม่ดีด้วย */
+      const B = MEASURE.bust;
+      const z = B.momWeight * chestZOf(mother) + B.dadWeight * chestZOf(father)
+        + randNormal(B.drift.mean, B.drift.sd, -2.5, 3);
+      m.chestFull = Math.round(
+        predictMeasure('female', body, 'chest') + z * MEASURE.female.chest.sd);
+      m.chest = m.chestFull;
+
+      const maxIdx = MEASURE.cup.letters.length - 1;
+      const momM = mother && mother.body && mother.body.measure;
+      const momCup = momM ? (momM.cupFull != null ? momM.cupFull : momM.cup) : null;
+      m.cupFull = momCup != null
+        ? Math.round(clamp(
+            momCup + B.dadWeight * chestZOf(father)
+              + randNormal(B.cupDrift.mean, B.cupDrift.sd, -2.5, 3),
+            0, maxIdx))
         : rollCup(body.bmi);
+      m.cup = m.cupFull;
     }
     return m;
   }
 
   /**
-   * ร่างกายมารดาหลังคลอดบุตร — หน้าอกและสะโพกขยาย มีโอกาสคัพขึ้นหนึ่งระดับ
-   * ทุนเสน่ห์ถูกปรับเท่าส่วนต่างของโบนัสสัดส่วนก่อน/หลัง เพื่อให้ค่าที่แสดง
-   * สอดคล้องกับทรงใหม่ (ทรงเข้าใกล้อุดมคติขึ้นก็ได้เสน่ห์เพิ่ม และกลับกัน)
+   * ปรับหน้าอกปัจจุบันของสตรีตามวัย — เริ่มต่ำกว่าศักยภาพพันธุกรรมตอนเข้า
+   * fromAge แล้วค่อยๆ โตจนเต็มศักยภาพที่ toAge เรียกซ้ำได้ทุกวันเกิด
+   */
+  function refreshBust(p) {
+    const m = p.body && p.body.measure;
+    if (!m || m.chestFull == null) return;
+    const g = MEASURE.bust.growth;
+    const t = clamp((p.age - g.fromAge) / (g.toAge - g.fromAge), 0, 1);
+    m.chest = Math.round(m.chestFull - g.chestDeficit * (1 - t));
+    m.cup = Math.round(
+      clamp(m.cupFull - g.cupDeficit * (1 - t), 0, MEASURE.cup.letters.length - 1));
+  }
+
+  /**
+   * ร่างกายมารดาหลังคลอดบุตร — สะโพกขยายทุกการคลอด ส่วนหน้าอก (และโอกาส
+   * คัพขึ้นหนึ่งระดับ) ขยายเฉพาะการคลอดบุตร maxGrowthBirths คนแรกเท่านั้น
+   * เสน่ห์ไม่ต้องปรับที่นี่ เพราะโบนัสสัดส่วนคิดสดจากทรงปัจจุบันใน charmFor
    */
   function applyMotherhood(mother) {
     const m = mother.body && mother.body.measure;
     if (!m) return;
     const g = MEASURE.motherhood;
     const randIn = (r) => r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
-    const before = shapeAdjust('female', mother.body);
-    m.chest += randIn(g.chest);
     m.hips += randIn(g.hips);
-    if (m.cup != null && Math.random() < g.cupUpChance)
-      m.cup = Math.min(MEASURE.cup.letters.length - 1, m.cup + 1);
-    const after = shapeAdjust('female', mother.body);
-    mother.charmBase = Math.round(
-      clamp(mother.charmBase + (after - before), CHARM.base.min, CHARM.base.max));
+    if (mother.childIds.length <= g.maxGrowthBirths) {
+      if (m.chestFull != null) m.chestFull += randIn(g.chest);
+      else m.chest += randIn(g.chest);
+      if (m.cupFull != null && Math.random() < g.cupUpChance)
+        m.cupFull = Math.min(MEASURE.cup.letters.length - 1, m.cupFull + 1);
+      refreshBust(mother);
+    }
+    mother.charm = charmFor(mother);   // ทรงเปลี่ยนกลางปี ให้คะแนนบนจอตามทันที
   }
 
   /** อักษรคัพจากดัชนี เช่น 3 → "C" */
@@ -290,26 +332,29 @@
     return Math.round(clamp((cwr - S.cwr.pivot) * S.cwr.slope, S.cwr.min, S.cwr.max) * 10) / 10;
   }
 
-  /** ทุนเสน่ห์ติดตัว คิดจากใบหน้า(สุ่ม) + ประเภทหุ่น + สุขภาพ + สัดส่วน */
-  function rollCharmBase(gender, body, bonus) {
+  /* ทุนเสน่ห์ไม่รวมโบนัสสัดส่วน — สัดส่วนคิดสดใน charmFor เสมอ
+     เพราะทรงเปลี่ยนได้ตลอดชีวิต (หน้าอกโตช่วงสาว ขยายอีกตอนคลอดบุตร) */
+
+  /** ทุนเสน่ห์ติดตัว คิดจากใบหน้า(สุ่ม) + ประเภทหุ่น + สุขภาพ */
+  function rollCharmBase(body, bonus) {
     const raw = randNormal(CHARM.base.mean, CHARM.base.sd, CHARM.base.min, CHARM.base.max);
     const build = CHARM.buildBonus[body.buildId] || 0;
     return Math.round(
-      clamp(raw + build + healthAdjust(body.bmi) + shapeAdjust(gender, body) + (bonus || 0),
+      clamp(raw + build + healthAdjust(body.bmi) + (bonus || 0),
         CHARM.base.min, CHARM.base.max));
   }
 
   /** ทุนเสน่ห์ของลูก อิงค่าเฉลี่ยพ่อแม่ตามสัดส่วน heredity */
-  function inheritCharmBase(gender, father, mother, body) {
+  function inheritCharmBase(father, mother, body) {
     const parents = [father, mother].filter((p) => p && p.charmBase != null);
-    if (!parents.length) return rollCharmBase(gender, body);
+    if (!parents.length) return rollCharmBase(body);
     const avg = parents.reduce((s, p) => s + p.charmBase, 0) / parents.length;
     const h = CHARM.heredity;
     const drift = randNormal(0, CHARM.base.sd, -CHARM.base.sd * 3, CHARM.base.sd * 3);
     const build = CHARM.buildBonus[body.buildId] || 0;
     return Math.round(
       clamp(avg * h + CHARM.base.mean * (1 - h) + drift * (1 - h)
-          + build + healthAdjust(body.bmi) + shapeAdjust(gender, body),
+          + build + healthAdjust(body.bmi),
         CHARM.base.min, CHARM.base.max));
   }
 
@@ -325,12 +370,13 @@
     return CHARM.curve[CHARM.curve.length - 1].to;
   }
 
-  /** เสน่ห์ที่แสดงจริง ณ อายุปัจจุบัน รวมท่วงท่าที่มาจากพลังยุทธ์ */
+  /** เสน่ห์ที่แสดงจริง ณ อายุปัจจุบัน รวมท่วงท่าจากพลังยุทธ์และทรงปัจจุบัน */
   function charmFor(p) {
     if (!p.alive) return 0;
     const poise = Math.min(CHARM.powerBonusMax,
       (p.power / CHARM.powerRef) * CHARM.powerBonusMax);
-    return Math.round(clamp(p.charmBase * charmAgeFactor(p.age) + poise, 0, 100));
+    return Math.round(clamp(
+      p.charmBase * charmAgeFactor(p.age) + poise + shapeAdjust(p.gender, p.body), 0, 100));
   }
 
   /** ชื่อระดับเสน่ห์ตามคะแนนและเพศ */
@@ -380,8 +426,9 @@
       deathAge: null,
       isFounder: !!opts.isFounder,   // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ป้ายอ้างอิงเฉยๆ)
     };
+    refreshBust(p);   // หน้าอกสตรีตามวัย ณ ตอนสร้าง (คนนอกอาจเข้ามาตอนยังสาว)
     p.powerBase = opts.powerBase != null ? opts.powerBase : rollPowerBase(p.body.buildId);
-    p.charmBase = opts.charmBase != null ? opts.charmBase : rollCharmBase(gender, p.body);
+    p.charmBase = opts.charmBase != null ? opts.charmBase : rollCharmBase(p.body);
     p.income = incomeFor(p);
     p.power = powerFor(p);
     p.charm = charmFor(p);
@@ -413,7 +460,7 @@
       aptitude: clamp(Math.random() + q * B.aptitude, 0, 1),
       powerBase: Math.round(clamp(
         rollPowerBase(body.buildId) + q * B.power, POWER.base.min, POWER.base.max)),
-      charmBase: rollCharmBase(gender, body, q * B.charm),
+      charmBase: rollCharmBase(body, q * B.charm),
     });
   }
 
@@ -429,7 +476,7 @@
       motherId: mother.id,
       body,
       powerBase: inheritPowerBase(father, mother, body.buildId),
-      charmBase: inheritCharmBase(gender, father, mother, body),
+      charmBase: inheritCharmBase(father, mother, body),
     });
   }
 
@@ -486,7 +533,7 @@
   root.Person = {
     createPerson, createOutsider, createChild,
     rollBody, inheritBody, buildLabel, buildById,
-    rollMeasure, inheritMeasure, measureLabel, cupLetter, applyMotherhood,
+    rollMeasure, inheritMeasure, measureLabel, cupLetter, applyMotherhood, refreshBust,
     rollPowerBase, inheritPowerBase, powerFor,
     rollCharmBase, inheritCharmBase, charmFor, charmTier, shapeAdjust,
     incomeFor, avatarSVG, randNormal, pick,
