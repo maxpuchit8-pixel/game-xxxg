@@ -117,7 +117,7 @@
           row('ประเภทหุ่น', P.buildLabel(p.body)) +
           row('ดัชนีมวลกาย', p.body.bmi) +
           (P.measureLabel(p)
-            ? row('สัดส่วน อก-เอว-สะโพก', P.measureLabel(p) + ' ซม.') +
+            ? row('สัดส่วน อก-เอว-สะโพก', P.measureLabel(p) + ' นิ้ว') +
               (p.gender === 'female' ? row('คัพหน้าอก', P.cupLetter(p.body.measure)) : '')
             : '')
         : `<p class="detail-note">ค่าร่างกายจะเปิดเผยเมื่ออายุครบ ${CONFIG.adultAge} ปี</p>`;

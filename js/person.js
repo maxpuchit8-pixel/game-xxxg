@@ -210,12 +210,17 @@
     return MEASURE.cup.letters[measure.cup] || '?';
   }
 
-  /** ข้อความสัดส่วนแบบสั้น — บุรุษ "94-79-93" สตรี "84C-66-91" */
+  /**
+   * ข้อความสัดส่วนแบบสั้นเป็น "นิ้ว" — บุรุษ "37-31-37" สตรี "33C-22-36"
+   * ค่าภายในเก็บเป็นซม.ทั้งหมด แปลงเฉพาะตอนแสดงผล เพราะขนาดแบบนิ้ว
+   * อ่านเข้าใจง่ายกว่าตามแบบขนาดเสื้อผ้า
+   */
   function measureLabel(person) {
     const m = person.body && person.body.measure;
     if (!m) return '';
-    const chest = person.gender === 'female' ? m.chest + cupLetter(m) : m.chest;
-    return `${chest}-${m.waist}-${m.hips}`;
+    const inch = (cm) => Math.round(cm / 2.54);
+    const chest = person.gender === 'female' ? inch(m.chest) + cupLetter(m) : inch(m.chest);
+    return `${chest}-${inch(m.waist)}-${inch(m.hips)}`;
   }
 
   /** สุ่มร่างกายของคนใหม่ที่ไม่มีพ่อแม่ในเกม (คนนอกที่แต่งเข้ามา) */
