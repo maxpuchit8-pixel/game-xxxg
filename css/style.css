@@ -164,6 +164,10 @@ main {
 
 #treeCanvas {
   position: absolute; top: 0; left: 0;
+  /* สำคัญมาก: ถ้าไม่กำหนด width ตัว absolute จะถูกบีบให้เท่าความกว้างของกรอบ
+     ผังที่กว้างกว่าจอจะล้นออกสองข้าง แล้ว scrollWidth คืนค่าผิด (นับเฉพาะที่ล้นขวา)
+     ทำให้ fit() คำนวณอัตราย่อผิดและผังทะลุออกนอกจอ — เห็นชัดเฉพาะบนมือถือ */
+  width: max-content;
   transform-origin: 0 0;
   will-change: transform;
   padding: 20px;
@@ -234,7 +238,12 @@ main {
 .tree-links path {
   fill: none; stroke: var(--connector);
   stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter;
-  shape-rendering: crispEdges;
+  /* คงความหนาเส้นไว้ 2px บนหน้าจอเสมอ ไม่ให้ถูกย่อไปตาม scale() ของผัง
+     ถ้าไม่ใส่ พอผังย่อเหลือ 43% เส้นจะบางเหลือ 0.86px แล้วหายเป็นช่วงๆ
+     ซึ่งดูเหมือนเส้นขาด — เจอเฉพาะบนมือถือเพราะที่นั่นผังถูกย่อลงมากกว่า
+     ห้ามใส่ shape-rendering: crispEdges คู่กัน เพราะการปัดขอบเข้าพิกเซลเต็ม
+     จะทำให้เส้นบางกว่า 1px หายไปเลย */
+  vector-effect: non-scaling-stroke;
 }
 /* การ์ดต้องอยู่เหนือเส้น ไม่งั้นเส้นจะพาดทับกลางการ์ด */
 .tree { position: relative; z-index: 1; }

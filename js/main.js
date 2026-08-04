@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * main.js — ตัวประสาน (entry point)
  * =============================================================================
@@ -69,6 +69,23 @@
   /* ---------------------------------------------------------------------
    * ตัวช่วย
    * ------------------------------------------------------------------- */
+
+  /**
+   * วาดผังใหม่ แล้วจัดมุมมองให้พอดีจออีกครั้ง
+   *
+   * จำเป็นเพราะผังโตขึ้นเรื่อยๆ ตลอดเกม ถ้าจัดมุมมองแค่ตอนเริ่มเกมครั้งเดียว
+   * อัตราซูมจะค้างอยู่ที่ค่าของตอนตระกูลยังมีไม่กี่คน พอคนเพิ่มผังจะทะลุออก
+   * นอกจอจนเห็นแค่เศษเสี้ยว (เห็นชัดมากบนมือถือที่จอแคบ)
+   *
+   * เคารพการซูม/เลื่อนที่ผู้เล่นตั้งเอง — ถ้าเขาปรับมุมมองแล้วจะไม่ไปยุ่ง
+   */
+  function renderTree() {
+    tree.render();
+    structureDirty = false;
+    if (viewport && !viewport.isUserAdjusted()) {
+      requestAnimationFrame(() => viewport.fit());
+    }
+  }
 
   function register(p) {
     p.bornMonth = game.state.month - p.age * 12 - Math.floor(Math.random() * 12);
@@ -152,8 +169,7 @@
         decisionPending = false;
         if (item.cfg.subjectId) pendingSubjects.delete(item.cfg.subjectId);
         item.onChoose(value);
-        tree.render();
-        structureDirty = false;
+        renderTree();
         ui.renderHUD();
         pumpDecisions();
       }
@@ -410,8 +426,7 @@
     }
 
     if (structureDirty) {
-      tree.render();
-      structureDirty = false;
+      renderTree();
     } else {
       tree.refreshFigures();
     }
@@ -540,7 +555,7 @@
         if (item.cfg.subjectId) pendingSubjects.delete(item.cfg.subjectId);
         item.onChoose(item.cfg.autoValue);
       }
-      tree.render();
+      renderTree();
       ui.renderHUD();
     }
   });

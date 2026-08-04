@@ -190,7 +190,10 @@
       svg.setAttribute('width', w);
       svg.setAttribute('height', h);
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-      svg.innerHTML = `<path d="${segments.join(' ')}"></path>`;
+      // ใส่ vector-effect เป็น attribute ด้วย ไม่ใช่แค่ใน CSS
+      // เพราะเบราว์เซอร์รุ่นเก่าบางตัวรองรับเฉพาะรูปแบบ attribute
+      svg.innerHTML =
+        `<path vector-effect="non-scaling-stroke" d="${segments.join(' ')}"></path>`;
     }
 
     function render() {
