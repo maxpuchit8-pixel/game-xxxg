@@ -14,6 +14,9 @@
   <!-- กล่องตัดสินใจ โผล่เมื่อสุ่มสถานการณ์ที่ต้องเลือก (เนื้อหาสร้างจาก ui.js) -->
   <div id="decision" class="decision-overlay"></div>
 
+  <!-- แผ่นข้อมูลตัวละคร โผล่เมื่อกดการ์ดในผัง (เนื้อหาสร้างจาก ui.js) -->
+  <div id="detail" class="detail-overlay"></div>
+
   <header>
     <div class="brand">
       <span class="brand-title display">สายใยตระกูล</span>
@@ -47,15 +50,27 @@
     <div class="clock-controls">
       <button id="playBtn" class="clock-btn" aria-label="เดินเวลา">▶</button>
       <button id="speedBtn" class="clock-btn speed" aria-label="เปลี่ยนความเร็ว">×1</button>
+      <button id="autoBtn" class="clock-btn auto" aria-label="สลับโหมดตัดสินใจ">ถามทุกครั้ง</button>
     </div>
   </header>
 
   <main>
     <section id="treePanel">
       <div id="winBanner" class="banner">
-        ตระกูลรุ่งเรืองเป็นที่เลื่องลือทั่วแผ่นดิน — ท่านบรรลุเป้าหมายแล้ว แต่ยังเล่นต่อได้ตามใจ
+        ตระกูลรุ่งเรืองเป็นที่เลื่องลือทั่วนคร — ท่านบรรลุเป้าหมายแล้ว แต่ยังเล่นต่อได้ตามใจ
       </div>
-      <div id="tree"></div>
+
+      <!-- กรอบซูม/เลื่อน: treeCanvas คือชั้นที่ถูก transform, tree คือเนื้อผัง -->
+      <div id="treeViewport">
+        <div id="treeCanvas"><div id="tree"></div></div>
+      </div>
+
+      <div class="zoom-controls">
+        <button id="zoomOut" class="zoom-btn" aria-label="ซูมออก">−</button>
+        <span id="zoomLabel" class="zoom-label">100%</span>
+        <button id="zoomIn" class="zoom-btn" aria-label="ซูมเข้า">+</button>
+        <button id="zoomFit" class="zoom-btn wide" aria-label="จัดให้พอดีจอ">พอดีจอ</button>
+      </div>
     </section>
 
     <aside id="chroniclePanel">
@@ -71,6 +86,7 @@
   <script src="js/lineage.js"></script>
   <script src="js/clock.js"></script>
   <script src="js/state.js"></script>
+  <script src="js/viewport.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/tree-ui.js"></script>
   <script src="js/main.js"></script>

@@ -200,7 +200,7 @@
       childIds: [],
       alive: true,
       deathAge: null,
-      isPlayer: !!opts.isPlayer,
+      isFounder: !!opts.isFounder,   // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ป้ายอ้างอิงเฉยๆ)
     };
     p.powerBase = opts.powerBase != null ? opts.powerBase : rollPowerBase(p.body.buildId);
     p.income = incomeFor(p);

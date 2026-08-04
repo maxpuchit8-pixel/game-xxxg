@@ -14,9 +14,10 @@
  *
  * วงจรหนึ่งเดือน: เดินปฏิทิน -> เก็บรายได้ -> เพิ่มอายุ -> สุ่มเหตุการณ์ชีวิต -> วาดผล
  *
- * "หัวหน้าตระกูล" (head) คือตัวละครที่ผู้เล่นควบคุม เหตุการณ์สำคัญของคนนี้
- * จะหยุดเวลาแล้วถามผู้เล่นก่อนเสมอ ส่วนสมาชิกคนอื่นดำเนินชีวิตไปเอง
- * เมื่อหัวหน้าตระกูลถึงแก่กรรม ตำแหน่งจะตกทอดสู่ทายาทที่อาวุโสที่สุด
+ * ผู้เล่นคุม "ทั้งตระกูล" ไม่ใช่ตัวละครใดตัวหนึ่ง ทุกครั้งที่สมาชิกสายเลือด
+ * มีเรื่องต้องตัดสินใจ (มีผู้มาทาบทาม จะมีทายาทไหม) เวลาจะหยุดแล้วถามผู้เล่นเสมอ
+ * เรื่องที่เกิดพร้อมกันหลายเรื่องใน tick เดียวจะเข้าคิวแล้วถามทีละเรื่อง
+ * ตัวละครที่เริ่มเกมเป็นเพียงจุดตั้งต้นของสาแหรก ไม่มีสิทธิพิเศษใดๆ
  * =============================================================================
  */
 (function () {
@@ -44,13 +45,26 @@
   const game = window.GameState.create();
   const clock = window.GameClock.create(tick);
   const ui = window.GameUI.create(game, lineage, clock);
-  const tree = window.TreeUI.create(lineage);
 
-  let head = null;                 // หัวหน้าตระกูลคนปัจจุบัน (ตัวที่ผู้เล่นคุม)
+  let viewport = null;             // ตัวคุมซูม/เลื่อนผัง (สร้างหลัง DOM พร้อม)
+  const tree = window.TreeUI.create(lineage, {
+    onSelect: (p) => openDetail(p.id),
+    // ถ้าเพิ่งลากผังอยู่ อย่าตีความว่าเป็นการกดเลือกการ์ด
+    shouldIgnoreClick: () => (viewport ? viewport.wasDragged() : false),
+  });
+
+  let founder = null;              // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ไว้อ้างอิงเฉยๆ)
   let structureDirty = false;      // ผังต้องวาดใหม่ไหม
-  let decisionPending = false;     // มีกล่องตัดสินใจค้างอยู่ไหม
-  let resumeAfterDecision = false;
   let gameOver = false;
+  let autoMode = false;            // true = ให้ระบบตัดสินใจแทนทุกเรื่อง
+
+  /* คิวการตัดสินใจ — ทุกคนในตระกูลมีสิทธิ์ถูกถาม ไม่ใช่แค่คนใดคนหนึ่ง
+   * จึงต้องเข้าคิวไว้แล้วถามทีละเรื่อง ไม่งั้นกล่องจะทับกันเองภายใน tick เดียว */
+  const decisionQueue = [];
+  const MAX_QUEUE = 10;            // เกินนี้ให้ระบบตัดสินใจแทนอัตโนมัติ กันคิวท่วม
+  let decisionPending = false;
+  let batchActive = false;
+  let resumeAfterDecision = false;
 
   /* ---------------------------------------------------------------------
    * ตัวช่วย
@@ -88,25 +102,62 @@
     `สูง ${p.body.height} ซม. หนัก ${p.body.weight} กก. หุ่น${P.buildLabel(p.body)} พลังยุทธ์ ${p.power}`;
 
   /* ---------------------------------------------------------------------
-   * กล่องตัดสินใจ — หยุดเวลาไว้ก่อน แล้วเดินต่อเมื่อผู้เล่นเลือกเสร็จ
+   * คิวการตัดสินใจ
+   * เข้าคิวไว้ก่อน แล้ว pump ทีละเรื่องตอนจบ tick — ระหว่างนั้นเวลาหยุดสนิท
+   * cfg.autoValue คือคำตอบที่ระบบจะเลือกให้เมื่ออยู่ในโหมดอัตโนมัติหรือคิวท่วม
    * ------------------------------------------------------------------- */
-  function ask(cfg, onChoose) {
-    if (decisionPending || gameOver) return false;
-    decisionPending = true;
-    resumeAfterDecision = clock.isRunning();
-    clock.pause();
-    ui.renderClockControls();
+  // คนที่มีเรื่องค้างอยู่ในคิว ใช้กันไม่ให้ถูกถามเรื่องเดิมซ้ำในเดือนถัดไป
+  const pendingSubjects = new Set();
 
-    ui.askDecision(cfg, (value) => {
-      decisionPending = false;
-      onChoose(value);
-      tree.render();
-      structureDirty = false;
-      ui.renderHUD();
-      if (resumeAfterDecision && !gameOver) clock.start();
+  function ask(cfg, onChoose) {
+    if (gameOver) return;
+
+    if (cfg.subjectId) {
+      if (pendingSubjects.has(cfg.subjectId)) return;
+      pendingSubjects.add(cfg.subjectId);
+    }
+
+    if (autoMode || decisionQueue.length >= MAX_QUEUE) {
+      if (cfg.subjectId) pendingSubjects.delete(cfg.subjectId);
+      onChoose(cfg.autoValue);
+      return;
+    }
+    decisionQueue.push({ cfg, onChoose });
+  }
+
+  function pumpDecisions() {
+    if (decisionPending || gameOver) return;
+
+    if (!decisionQueue.length) {
+      if (batchActive) {
+        batchActive = false;
+        if (resumeAfterDecision) clock.start();
+        ui.renderClockControls();
+      }
+      return;
+    }
+
+    if (!batchActive) {
+      batchActive = true;
+      resumeAfterDecision = clock.isRunning();
+      clock.pause();
       ui.renderClockControls();
-    });
-    return true;
+    }
+
+    const item = decisionQueue.shift();
+    decisionPending = true;
+    ui.askDecision(
+      Object.assign({}, item.cfg, { queued: decisionQueue.length }),
+      (value) => {
+        decisionPending = false;
+        if (item.cfg.subjectId) pendingSubjects.delete(item.cfg.subjectId);
+        item.onChoose(value);
+        tree.render();
+        structureDirty = false;
+        ui.renderHUD();
+        pumpDecisions();
+      }
+    );
   }
 
   /* ---------------------------------------------------------------------
@@ -149,25 +200,23 @@
       const partnerGender = p.gender === 'male' ? 'female' : 'male';
       const partner = P.createOutsider(partnerGender, p.age);
 
-      // เรื่องของหัวหน้าตระกูล ผู้เล่นเป็นคนตัดสินใจเอง
-      if (p === head) {
-        ask({
-          kind: 'marriage',
-          title: 'มีผู้มาทาบทาม',
-          person: partner,
-          text: `${partner.name} ${partner.origin} มาทาบทามขอครองคู่กับท่าน จะรับไว้หรือรอผู้อื่นในภายหน้า`,
-          options: [
-            { label: 'รับไว้เป็นคู่ครอง', value: 'yes', note: 'ชื่อเสียง +3 และเริ่มมีทายาทได้', tone: 'accept' },
-            { label: 'ปฏิเสธไปก่อน', value: 'no', note: 'รอผู้ที่เหมาะสมกว่านี้', tone: 'decline' },
-          ],
-        }, (v) => {
-          if (v === 'yes') completeMarriage(p, partner);
-          else ui.logEvent(`${p.name}ปฏิเสธการทาบทามของ${partner.name}อย่างสุภาพ`, 'event');
-        });
-        return;
-      }
-
-      completeMarriage(p, partner);
+      ask({
+        kind: 'marriage',
+        title: 'มีผู้มาทาบทาม',
+        subject: `${p.name} (อายุ ${p.age} ปี · พลังยุทธ์ ${p.power})`,
+        subjectId: p.id,
+        person: partner,
+        autoValue: 'yes',
+        text: `${partner.name} ${partner.origin} มาทาบทามขอครองคู่กับ${p.name} ` +
+              'จะรับไว้หรือรอผู้อื่นในภายหน้า',
+        options: [
+          { label: 'รับไว้เป็นคู่ครอง', value: 'yes', note: 'ชื่อเสียง +3 และเริ่มมีทายาทได้', tone: 'accept' },
+          { label: 'ปฏิเสธไปก่อน', value: 'no', note: 'รอผู้ที่เหมาะสมกว่านี้', tone: 'decline' },
+        ],
+      }, (v) => {
+        if (v === 'yes') completeMarriage(p, partner);
+        else ui.logEvent(`${p.name}ปฏิเสธการทาบทามของ${partner.name}อย่างสุภาพ`, 'event');
+      });
     });
   }
 
@@ -201,46 +250,25 @@
       if (mother.childIds.length >= CONFIG.maxChildren) return;
       if (Math.random() >= CONFIG.birthChancePerMonth) return;
 
-      // ครอบครัวของหัวหน้าตระกูล ผู้เล่นเลือกเองว่าจะมีบุตรตอนนี้หรือยัง
-      if (p === head || spouse === head) {
-        const count = mother.childIds.length;
-        ask({
-          kind: 'birth',
-          title: 'ปรึกษาเรื่องทายาท',
-          text: `${father.name}และ${mother.name}ปรึกษากันเรื่องการมีบุตร ` +
-                (count ? `ขณะนี้มีบุตรแล้ว ${count} คน ` : 'ยังไม่มีบุตรด้วยกัน ') +
-                'จะตกลงมีทายาทในช่วงนี้หรือไม่',
-          options: [
-            { label: 'ตกลงมีทายาท', value: 'yes', note: 'ชื่อเสียง +2 แต่เด็กเล็กเป็นภาระค่าใช้จ่าย', tone: 'accept' },
-            { label: 'ยังไม่ใช่เวลานี้', value: 'no', note: 'เก็บกำลังทรัพย์ไว้ก่อน', tone: 'decline' },
-          ],
-        }, (v) => {
-          if (v === 'yes') completeBirth(father, mother);
-          else ui.logEvent(`${father.name}และ${mother.name}ตกลงกันว่ายังไม่ใช่เวลาที่เหมาะ`, 'event');
-        });
-        return;
-      }
-
-      completeBirth(father, mother);
+      const count = mother.childIds.length;
+      ask({
+        kind: 'birth',
+        title: 'ปรึกษาเรื่องทายาท',
+        subject: `${father.name} และ ${mother.name}`,
+        subjectId: p.id,
+        autoValue: 'yes',
+        text: `${father.name}และ${mother.name}ปรึกษากันเรื่องการมีบุตร ` +
+              (count ? `ขณะนี้มีบุตรแล้ว ${count} คน ` : 'ยังไม่มีบุตรด้วยกัน ') +
+              'จะตกลงมีทายาทในช่วงนี้หรือไม่',
+        options: [
+          { label: 'ตกลงมีทายาท', value: 'yes', note: 'ชื่อเสียง +2 แต่เด็กเล็กเป็นภาระค่าใช้จ่าย', tone: 'accept' },
+          { label: 'ยังไม่ใช่เวลานี้', value: 'no', note: 'เก็บกำลังทรัพย์ไว้ก่อน', tone: 'decline' },
+        ],
+      }, (v) => {
+        if (v === 'yes') completeBirth(father, mother);
+        else ui.logEvent(`${father.name}และ${mother.name}ตกลงกันว่ายังไม่ใช่เวลาที่เหมาะ`, 'event');
+      });
     });
-  }
-
-  /** ยกทายาทที่อาวุโสที่สุดขึ้นเป็นหัวหน้าตระกูลคนใหม่ */
-  function promoteHeir(previous) {
-    const adults = lineage.living().filter((p) => p.isBlood && p.age >= CONFIG.adultAge);
-    if (!adults.length) { head = null; return; }
-
-    const ownChildren = previous
-      ? previous.childIds.map(lineage.get).filter((c) => c && c.alive && c.age >= CONFIG.adultAge)
-      : [];
-    const pool = ownChildren.length ? ownChildren : adults;
-    const heir = pool.sort((a, b) => b.age - a.age)[0];
-
-    if (previous) previous.isPlayer = false;
-    heir.isPlayer = true;
-    head = heir;
-    structureDirty = true;
-    ui.logEvent(`${heir.name}ขึ้นเป็นหัวหน้าตระกูลคนใหม่สืบต่อจาก${previous ? previous.name : 'รุ่นก่อน'}`, 'milestone');
   }
 
   function rollDeaths() {
@@ -259,7 +287,6 @@
           : `${p.name}ล้มป่วยกะทันหันและจากไปด้วยวัยเพียง ${p.deathAge} ปี`,
         'death'
       );
-      if (p === head) promoteHeir(p);
     });
   }
 
@@ -315,15 +342,20 @@
 
     } else if (evt.id === 'duel') {
       if (value === 'accept') {
-        // ผลแพ้ชนะขึ้นกับพลังยุทธ์ของหัวหน้าตระกูลเทียบกับคู่แข่งที่สุ่มขึ้นมา
-        const rival = Math.round(P.randNormal(100, 30, 40, 200));
-        const mine = head ? head.power : 0;
+        // ส่งคนที่พลังยุทธ์สูงสุดในตระกูลขึ้นสังเวียน
+        const champion = lineage.living()
+          .filter((x) => x.age >= CONFIG.adultAge)
+          .sort((a, b) => b.power - a.power)[0];
+        const rival = Math.round(P.randNormal(110, 32, 40, 210));
+        const mine = champion ? champion.power : 0;
         const win = mine >= rival;
         gold = win ? 600 : -200;
         rep = win ? 12 : -6;
-        text = win
-          ? `${head.name}ขึ้นประลองและเอาชนะคู่แข่งได้ (พลังยุทธ์ ${mine} ต่อ ${rival}) ชื่อเสียงตระกูลขจรไปทั่วนคร`
-          : `${head.name}ขึ้นประลองแต่พ่ายแพ้ไป (พลังยุทธ์ ${mine} ต่อ ${rival}) ตระกูลเสียหน้าไม่น้อย`;
+        text = champion
+          ? (win
+            ? `${champion.name}ขึ้นประลองแทนตระกูลและเอาชนะได้ (พลังยุทธ์ ${mine} ต่อ ${rival}) ชื่อเสียงขจรไปทั่วนคร`
+            : `${champion.name}ขึ้นประลองแทนตระกูลแต่พ่ายแพ้ (พลังยุทธ์ ${mine} ต่อ ${rival}) ตระกูลเสียหน้าไม่น้อย`)
+          : 'ตระกูลไม่มีผู้ใดพร้อมขึ้นสังเวียน จึงต้องยอมถอย';
       } else { rep = -2; text = 'ตระกูลเลี่ยงการปะทะ คู่แข่งเยาะเย้ยอยู่พักหนึ่ง'; }
     }
 
@@ -336,14 +368,15 @@
   }
 
   function rollChoiceEvent() {
-    if (decisionPending || !head) return;
     if (Math.random() >= CONFIG.choiceEventChance) return;
+    if (!lineage.living().some((p) => p.isBlood)) return;
 
     const evt = P.pick(CHOICE_EVENTS);
     ask({
       kind: 'choice',
       title: evt.title,
       text: evt.text,
+      autoValue: evt.options[0].value,
       options: evt.options,
     }, (v) => resolveChoice(evt, v));
   }
@@ -371,9 +404,6 @@
     rollAmbient();
     rollChoiceEvent();
 
-    // หัวหน้าตระกูลว่างลงเพราะทายาทเพิ่งโตพอ
-    if (!head || !head.alive) promoteHeir(head);
-
     if (game.checkWin(lineage.maxGeneration())) {
       ui.showWin();
       ui.logEvent('ตระกูลรุ่งเรืองเป็นที่เลื่องลือทั่วแผ่นดิน — บรรลุเป้าหมายแล้ว', 'milestone');
@@ -387,6 +417,7 @@
     }
     ui.renderHUD();
     checkExtinction();
+    pumpDecisions();   // ถามเรื่องที่ค้างอยู่ทีละเรื่อง โดยหยุดเวลารอ
   }
 
   /* ---------------------------------------------------------------------
@@ -402,7 +433,7 @@
       gender: playerGender,
       age: 18,
       isBlood: true,
-      isPlayer: true,
+      isFounder: true,
       fatherId: father.id,
       motherId: mother.id,
       body: playerBody,
@@ -411,7 +442,7 @@
     father.childIds.push(player.id);
     mother.childIds.push(player.id);
     linkBlood(player);
-    head = player;
+    founder = player;
 
     // พี่น้องของผู้เล่น 1–2 คน เพื่อไม่ให้ชะตาของทั้งตระกูลแขวนอยู่กับคนเดียว
     // (ถ้าผู้เล่นคนเดียวไม่มีบุตร ตระกูลจะสูญสิ้นตั้งแต่รุ่นแรกทันที)
@@ -434,10 +465,12 @@
     }
 
     tree.render();
+    viewport.fit();
     ui.renderHUD();
     ui.logEvent(
-      `พงศาวดารเริ่มต้นขึ้น ท่านคือ${player.name} ${genderWord(player.gender)}วัย ${player.age} ปี ` +
-      `${bodyWord(player)} บุตรของ${father.name}และ${mother.name}`,
+      `พงศาวดารเริ่มต้นขึ้นที่${player.name} ${genderWord(player.gender)}วัย ${player.age} ปี ` +
+      `${bodyWord(player)} บุตรของ${father.name}และ${mother.name} — ` +
+      'นับจากนี้ทุกคนในตระกูลคือคนของท่าน',
       'milestone'
     );
 
@@ -446,8 +479,31 @@
   }
 
   /* ---------------------------------------------------------------------
-   * ปุ่มควบคุมเวลา
+   * แผ่นข้อมูลตัวละคร
    * ------------------------------------------------------------------- */
+  function openDetail(id) {
+    const p = lineage.get(id);
+    if (!p) return;
+    tree.highlight(id);
+    ui.showPersonDetail(p, openDetail);   // กดชื่อญาติแล้วสลับไปดูคนนั้นต่อได้
+  }
+
+  /* ---------------------------------------------------------------------
+   * ปุ่มควบคุม
+   * ------------------------------------------------------------------- */
+  viewport = window.Viewport.create(
+    document.getElementById('treeViewport'),
+    document.getElementById('treeCanvas'),
+    { onChange: (s) => {
+      const el = document.getElementById('zoomLabel');
+      if (el) el.textContent = Math.round(s * 100) + '%';
+    } }
+  );
+
+  document.getElementById('zoomIn').addEventListener('click', () => viewport.zoomIn());
+  document.getElementById('zoomOut').addEventListener('click', () => viewport.zoomOut());
+  document.getElementById('zoomFit').addEventListener('click', () => viewport.fit());
+
   document.getElementById('playBtn').addEventListener('click', () => {
     if (gameOver || decisionPending) return;
     clock.toggle();
@@ -459,8 +515,25 @@
     ui.renderClockControls();
   });
 
-  // เว้นวรรค = เล่น/หยุด เพื่อกดหยุดดูผังได้เร็วๆ
+  document.getElementById('autoBtn').addEventListener('click', () => {
+    autoMode = !autoMode;
+    ui.renderAutoButton(autoMode);
+    if (autoMode) {
+      // เคลียร์คิวที่ค้างอยู่ด้วยค่าอัตโนมัติ แล้วปล่อยเวลาเดินต่อ
+      while (decisionQueue.length) {
+        const item = decisionQueue.shift();
+        if (item.cfg.subjectId) pendingSubjects.delete(item.cfg.subjectId);
+        item.onChoose(item.cfg.autoValue);
+      }
+      tree.render();
+      ui.renderHUD();
+    }
+  });
+
   document.addEventListener('keydown', (e) => {
+    // Esc = ปิดแผ่นข้อมูลตัวละคร
+    if (e.key === 'Escape') { ui.hidePersonDetail(); return; }
+    // เว้นวรรค = เล่น/หยุด เพื่อกดหยุดดูผังได้เร็วๆ
     if (e.code !== 'Space' || gameOver || decisionPending) return;
     if (e.target.closest('button')) return;
     e.preventDefault();
@@ -468,5 +541,8 @@
     ui.renderClockControls();
   });
 
+  window.addEventListener('resize', () => { if (viewport) viewport.fit(); });
+
+  ui.renderAutoButton(autoMode);
   ui.showStartScreen(startGame);
 })();

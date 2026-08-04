@@ -83,6 +83,95 @@
       els.winBanner.classList.add('show');
     }
 
+    /* ------------------- แผ่นข้อมูลตัวละคร ------------------- */
+
+    /** แถวข้อมูลหนึ่งบรรทัด */
+    function row(label, value) {
+      return `<div class="detail-row"><span>${label}</span><b>${value}</b></div>`;
+    }
+
+    /** ชื่อพร้อมจุดสีบอกเพศ ใช้ในรายการเครือญาติ */
+    function nameChip(p) {
+      if (!p) return '<span class="kin-none">—</span>';
+      return `<button class="kin" data-goto="${p.id}">` +
+        `<i class="kin-dot ${p.gender}"></i>${p.name}` +
+        `<span class="kin-age">${p.alive ? p.age + ' ปี' : 'ล่วงลับ'}</span></button>`;
+    }
+
+    /**
+     * เปิดแผ่นข้อมูลของตัวละคร
+     * onGoto(id) ถูกเรียกเมื่อผู้เล่นกดชื่อญาติ เพื่อสลับไปดูคนนั้นแทน
+     */
+    function showPersonDetail(p, onGoto) {
+      const host = document.getElementById('detail');
+      const father = p.fatherId ? lineage.get(p.fatherId) : null;
+      const mother = p.motherId ? lineage.get(p.motherId) : null;
+      const spouse = p.spouseId ? lineage.get(p.spouseId) : null;
+      const kids = p.childIds.map(lineage.get).filter(Boolean);
+      const adult = p.age >= CONFIG.adultAge;
+
+      const bodyBlock = adult
+        ? row('ส่วนสูง', p.body.height + ' ซม.') +
+          row('น้ำหนัก', p.body.weight + ' กก.') +
+          row('ประเภทหุ่น', P.buildLabel(p.body)) +
+          row('ดัชนีมวลกาย', p.body.bmi)
+        : `<p class="detail-note">ค่าร่างกายจะเปิดเผยเมื่ออายุครบ ${CONFIG.adultAge} ปี</p>`;
+
+      host.innerHTML = `
+        <div class="detail-panel ${p.gender}" role="dialog" aria-modal="true" aria-label="ข้อมูล${p.name}">
+          <button class="detail-close" aria-label="ปิด">✕</button>
+
+          <div class="detail-head">
+            <div class="detail-portrait ${p.gender}">${P.avatarSVG(p)}</div>
+            <div class="detail-id">
+              <div class="detail-name">${p.name}</div>
+              <div class="detail-tags">
+                <span class="chip ${p.gender}">${p.gender === 'male' ? 'บุรุษ' : 'สตรี'}</span>
+                <span class="chip">${p.alive ? 'อายุ ' + p.age + ' ปี' : 'ถึงแก่กรรม อายุ ' + p.deathAge}</span>
+                <span class="chip">${p.isBlood ? 'สายเลือดตระกูล' : 'แต่งเข้าตระกูล'}</span>
+                ${p.isFounder ? '<span class="chip founder">ผู้เริ่มต้น</span>' : ''}
+              </div>
+              ${p.origin ? `<div class="detail-origin">${p.origin}</div>` : ''}
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <section>
+              <h4>พลังยุทธ์</h4>
+              ${row('พลังปัจจุบัน', p.alive ? p.power : '—')}
+              ${row('ศักยภาพติดตัว', p.powerBase)}
+              ${row('รายได้', (p.income >= 0 ? '+' : '') + (Math.round(p.income * 10) / 10) + ' เครดิต/เดือน')}
+            </section>
+            <section>
+              <h4>ร่างกาย</h4>
+              ${bodyBlock}
+            </section>
+          </div>
+
+          <section class="detail-kin">
+            <h4>เครือญาติ</h4>
+            ${row('บิดา', nameChip(father))}
+            ${row('มารดา', nameChip(mother))}
+            ${row('คู่ครอง', spouse ? nameChip(spouse) : (adult ? '<span class="kin-none">ยังไม่มีคู่</span>' : '<span class="kin-none">—</span>'))}
+            <div class="detail-row kids"><span>บุตร (${kids.length})</span>
+              <div class="kin-list">${kids.length ? kids.map(nameChip).join('') : '<span class="kin-none">ยังไม่มีบุตร</span>'}</div>
+            </div>
+          </section>
+        </div>`;
+
+      host.classList.add('show');
+      host.querySelector('.detail-close').addEventListener('click', hidePersonDetail);
+      host.querySelectorAll('.kin[data-goto]').forEach((btn) => {
+        btn.addEventListener('click', () => onGoto(btn.dataset.goto));
+      });
+    }
+
+    function hidePersonDetail() {
+      const host = document.getElementById('detail');
+      host.classList.remove('show');
+      host.innerHTML = '';
+    }
+
     /* ------------------- กล่องตัดสินใจ ------------------- */
 
     /**
@@ -104,9 +193,14 @@
            </div>`
         : '';
 
+      const queueNote = cfg.queued
+        ? `<span class="decision-queue">อีก ${cfg.queued} เรื่องรออยู่</span>` : '';
+
       host.innerHTML = `
         <div class="decision-panel ${cfg.kind || ''}" role="dialog" aria-modal="true" aria-label="${cfg.title}">
+          ${queueNote}
           <h3 class="decision-title display">${cfg.title}</h3>
+          ${cfg.subject ? `<div class="decision-subject">เรื่องของ ${cfg.subject}</div>` : ''}
           ${portrait ? `<div class="decision-portrait ${cfg.person.gender}">${portrait}</div>` : ''}
           ${cfg.person ? `<div class="decision-name">${cfg.person.name}</div>` : ''}
           ${facts}
@@ -185,7 +279,21 @@
       });
     }
 
-    return { renderHUD, renderClockControls, logEvent, showWin, showStartScreen, askDecision };
+    /** อัปเดตหน้าตาปุ่มโหมดตัดสินใจอัตโนมัติ */
+    function renderAutoButton(on) {
+      const btn = document.getElementById('autoBtn');
+      if (!btn) return;
+      btn.classList.toggle('on', on);
+      btn.textContent = on ? 'อัตโนมัติ' : 'ถามทุกครั้ง';
+      btn.title = on
+        ? 'ระบบกำลังตัดสินใจแทนท่าน — กดเพื่อกลับมาเลือกเอง'
+        : 'ท่านเลือกเองทุกเรื่อง — กดเพื่อให้ระบบตัดสินใจแทน';
+    }
+
+    return {
+      renderHUD, renderClockControls, logEvent, showWin, showStartScreen,
+      askDecision, showPersonDetail, hidePersonDetail, renderAutoButton,
+    };
   }
 
   root.GameUI = { create: createUI };

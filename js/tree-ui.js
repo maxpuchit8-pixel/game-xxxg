@@ -17,8 +17,18 @@
   const P = root.Person;
   const { CONFIG } = root.GameData;
 
-  function createTreeUI(lineage) {
+  function createTreeUI(lineage, opts = {}) {
     const host = document.getElementById('tree');
+    const onSelect = opts.onSelect || function () {};
+    const shouldIgnoreClick = opts.shouldIgnoreClick || function () { return false; };
+
+    // ใช้ event delegation ครั้งเดียว การ์ดถูกวาดใหม่บ่อยมากจึงไม่ผูกทีละใบ
+    host.addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (!card || shouldIgnoreClick()) return;
+      const p = lineage.get(card.dataset.id);
+      if (p) onSelect(p);
+    });
 
     /** ฟอร์แมตรายได้ให้อ่านง่าย เช่น +7.0 / -5.8 */
     function incomeLabel(v) {
@@ -33,7 +43,7 @@
         'card',
         p.gender === 'male' ? 'male' : 'female',
         p.alive ? '' : 'dead',
-        p.isPlayer ? 'player' : '',
+        p.isFounder ? 'founder' : '',
         p.isBlood ? '' : 'married-in',
       ].filter(Boolean).join(' ');
 
@@ -45,9 +55,9 @@
       const originText = !p.isBlood && p.origin ? `<div class="card-origin">${p.origin}</div>` : '';
       const incomeCls = p.income >= 0 ? 'pos' : 'neg';
 
-      return `<div class="${cls}" data-id="${p.id}" title="${p.name}">
+      return `<div class="${cls}" data-id="${p.id}" title="กดเพื่อดูข้อมูล${p.name}" role="button" tabindex="0">
         <span class="age-badge">${ageText}</span>
-        ${p.isPlayer ? '<span class="you-badge">ท่าน</span>' : ''}
+        ${p.isFounder ? '<span class="you-badge">ผู้เริ่มต้น</span>' : ''}
         <div class="card-name">${p.name}</div>
         <div class="portrait">${P.avatarSVG(p)}</div>
         ${p.alive ? `<div class="card-power">พลังยุทธ์ <b>${p.power}</b></div>` : ''}
@@ -111,7 +121,19 @@
       });
     }
 
-    return { render, refreshFigures };
+    /**
+     * เน้นการ์ดของคนที่กำลังดูอยู่
+     * ไม่ใช้ scrollIntoView เพราะผังถูกเลื่อนด้วย CSS transform ไม่ใช่ scroll
+     * การเรียก scrollIntoView จะไปดันทั้งหน้าเว็บแทนที่จะเลื่อนผัง
+     */
+    function highlight(id) {
+      host.querySelectorAll('.card.focus').forEach((el) => el.classList.remove('focus'));
+      const el = host.querySelector(`.card[data-id="${id}"]`);
+      if (el) el.classList.add('focus');
+      return el;
+    }
+
+    return { render, refreshFigures, highlight };
   }
 
   root.TreeUI = { create: createTreeUI };
