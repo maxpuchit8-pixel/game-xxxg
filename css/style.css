@@ -212,49 +212,32 @@ main {
 .unit { display: flex; flex-direction: column; align-items: center; position: relative; }
 
 /* -----------------------------------------------------------------------------
- * เรขาคณิตของเส้นเชื่อม — ระยะทั้งหมดต้องต่อกันพอดี ห้ามมีช่องว่าง
+ * เส้นเชื่อมวาดด้วย SVG ไม่ใช่ CSS
  *
- *   y = 0     ขอบล่างของการ์ดคู่พ่อแม่ (= ขอบบนของ .children)
- *   y = 0–20  เส้นตั้งลงจากคู่พ่อแม่          .children::before
- *   y = 20    เส้นนอนเชื่อมพี่น้องทุกคน        .unit::before / ::after
- *   y = 20–40 เส้นตั้งจากเส้นนอนลงหาการ์ดลูก   .couple::before
- *   y = 40    ขอบบนของการ์ดลูก (= padding-top ของ .unit)
+ * เดิมใช้ ::before/::after ประกอบเส้นนอนจากชิ้นครึ่งซ้าย/ครึ่งขวาของลูกแต่ละคน
+ * มาต่อกัน ซึ่งขาดเป็นท่อนเสมอเมื่อผังถูกย่อด้วย scale() เป็นทศนิยม
+ * เพราะรอยต่อระหว่างชิ้นตกลงบนพิกเซลไม่ลงตัว
  *
- * ระยะเว้นทั้งหมดอยู่ที่ padding-top ของ .unit ที่เดียว
- * ถ้าไปใส่ padding ที่ .children ด้วย ตำแหน่งเส้นนอนจะเลื่อนลงแต่เส้นตั้ง
- * ไม่เลื่อนตาม กลายเป็นเส้นขาดเป็นท่อนทันที
+ * ตอนนี้ tree-ui.js วัดตำแหน่งการ์ดจริงหลังเรนเดอร์แล้ววาดเป็น path เดียว
+ * เส้นนอนจึงเป็นเส้นยาวต่อเนื่องไม่มีรอยต่อ และเลื่อนตามการ์ดเสมอ
+ * CSS ตรงนี้เหลือแค่ระยะเว้นให้มีที่วางเส้น
  * -------------------------------------------------------------------------- */
 .children { position: relative; }
-
-.children::before {
-  content: ''; position: absolute; top: 0; left: 50%; margin-left: -1px;
-  width: 2px; height: 20px; background: var(--connector);
-}
-
 .children > .unit { padding: 40px 9px 0; }
 
-/* เส้นนอนแบ่งเป็นครึ่งซ้าย/ครึ่งขวาของแต่ละคน แล้วซ่อนครึ่งนอกสุด
-   ของคนแรกกับคนสุดท้าย เส้นจึงพาดพอดีจากกึ่งกลางลูกคนแรกถึงคนสุดท้าย */
-.children > .unit::before,
-.children > .unit::after {
-  content: ''; position: absolute; top: 20px; width: 50%; height: 2px;
-  background: var(--connector);
-}
-.children > .unit::before { left: 0; }
-.children > .unit::after { left: 50%; }
-.children > .unit:first-child::before { display: none; }
-.children > .unit:last-child::after { display: none; }
+#tree { position: relative; }
 
-.children > .unit > .couple { position: relative; }
-.children > .unit > .couple::before {
-  content: ''; position: absolute; top: -20px; left: 50%; margin-left: -1px;
-  width: 2px; height: 20px; background: var(--connector);
+.tree-links {
+  position: absolute; left: 0; top: 0;
+  pointer-events: none; overflow: visible; z-index: 0;
 }
-
-/* ลูกคนเดียว: ไม่มีพี่น้องให้เชื่อม ตัดเส้นนอนทิ้ง
-   เหลือเส้นตั้งสองท่อนต่อกันเป็นเส้นเดียวยาวจากพ่อแม่ถึงลูกพอดี */
-.children > .unit:only-child::before,
-.children > .unit:only-child::after { display: none; }
+.tree-links path {
+  fill: none; stroke: var(--connector);
+  stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter;
+  shape-rendering: crispEdges;
+}
+/* การ์ดต้องอยู่เหนือเส้น ไม่งั้นเส้นจะพาดทับกลางการ์ด */
+.tree { position: relative; z-index: 1; }
 
 /* คู่สมรสวางเคียงกัน คั่นด้วยปมเส้น */
 .couple { display: flex; align-items: center; }
@@ -278,7 +261,9 @@ main {
   text-align: center; cursor: pointer;
   transition: transform .12s ease, box-shadow .12s ease;
 }
-.card:hover { transform: translateY(-2px); }
+/* ไม่ขยับตำแหน่งการ์ดตอน hover เพราะเส้นเชื่อมถูกวาดจากพิกัดที่วัดไว้แล้ว
+   ถ้าการ์ดเลื่อน เส้นจะดูหลุดจากการ์ดทันที */
+.card:hover { border-color: var(--gold); }
 .card:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .card.male   { border-color: var(--male);   background: var(--male-soft); }
 .card.female { border-color: var(--female); background: var(--female-soft); }

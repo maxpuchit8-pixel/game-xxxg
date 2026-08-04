@@ -467,7 +467,10 @@
     tree.render();
     // รอให้เบราว์เซอร์จัด layout เสร็จก่อนวัดขนาด ไม่งั้นบนมือถือจะวัดได้ค่าศูนย์
     // เพราะหน้าจอเริ่มเกมเพิ่งถูกซ่อนไปในเฟรมเดียวกัน
-    requestAnimationFrame(() => viewport.fit());
+    requestAnimationFrame(() => {
+      viewport.fit();
+      tree.drawLinks();   // วาดเส้นซ้ำหลัง layout นิ่งแล้ว เผื่อฟอนต์เพิ่งโหลดเสร็จ
+    });
     ui.renderHUD();
     ui.logEvent(
       `พงศาวดารเริ่มต้นขึ้นที่${player.name} ${genderWord(player.gender)}วัย ${player.age} ปี ` +
