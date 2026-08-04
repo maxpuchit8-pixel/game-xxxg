@@ -122,11 +122,16 @@
             : '')
         : `<p class="detail-note">ค่าร่างกายจะเปิดเผยเมื่ออายุครบ ${CONFIG.adultAge} ปี</p>`;
 
+      const W = root.GameData.CHARM.weights;
+      const pct = (w) => Math.round(w * 100) + '%';
+      const parts = adult ? P.charmParts(p) : null;
       const charmBlock = adult
         ? row('คะแนนเสน่ห์', `${p.charm} / 100`) +
           row('ระดับ', `<span class="charm-tier">${P.charmTier(p.charm, p.gender)}</span>`) +
-          row('ทุนเดิมติดตัว', p.charmBase) +
-          row('ผลจากสัดส่วน', (P.shapeAdjust(p.gender, p.body) >= 0 ? '+' : '') + P.shapeAdjust(p.gender, p.body))
+          row(`หน้าตา (น้ำหนัก ${pct(W.face)})`, `${parts.face} / 100`) +
+          row(`สัดส่วน (น้ำหนัก ${pct(W.shape)})`, `${parts.shape} / 100`) +
+          row(`สุขภาพ (น้ำหนัก ${pct(W.health)})`, `${parts.health} / 100`) +
+          row(`ท่วงท่า (น้ำหนัก ${pct(W.poise)})`, `${parts.poise} / 100`)
         : '';
 
       host.innerHTML = `

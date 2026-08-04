@@ -307,55 +307,68 @@
    * เสน่ห์
    * ------------------------------------------------------------------- */
 
-  /** โบนัส/โทษจากสุขภาพ — BMI ที่ห่างจากช่วงสมส่วนมากจะหักคะแนน */
-  function healthAdjust(bmi) {
-    const h = CHARM.healthyBmi;
+  /* เสน่ห์ = ผลรวมถ่วงน้ำหนักของสี่องค์ประกอบ (แต่ละก้อน 0–100)
+     หน้าตากับสัดส่วนเป็นสองก้อนหลัก — ดูน้ำหนักใน CHARM.weights
+     เก็บเฉพาะหน้าตาไว้บนตัวละคร (charmBase) ที่เหลือคิดสดจากร่างกายปัจจุบัน
+     เพราะทรงเปลี่ยนได้ตลอดชีวิต (หน้าอกโตช่วงสาว ขยายอีกตอนคลอดบุตร) */
+
+  /** คะแนนสุขภาพ 0–100 — เต็มเมื่อ BMI อยู่ช่วงงามสมส่วน */
+  function healthScore(bmi) {
+    const h = CHARM.healthScore;
     const off = bmi < h.lo ? h.lo - bmi : (bmi > h.hi ? bmi - h.hi : 0);
-    return -Math.min(h.maxPenalty, off * h.penaltyPerPoint);
+    return Math.round(clamp(100 - off * h.perPoint, 0, 100));
   }
 
   /**
-   * โบนัส/โทษเสน่ห์จากสัดส่วน — เอกลักษณ์ของเกม
+   * คะแนนสัดส่วน 0–100 — เอกลักษณ์ของเกม
    * คิดจากอัตราส่วน ไม่ใช่ขนาดดิบ คนตัวเล็กตัวใหญ่จึงเท่าเทียมกัน ขอแค่ทรงได้รูป
    */
-  function shapeAdjust(gender, body) {
+  function shapeScore(gender, body) {
     const m = body.measure;
-    if (!m) return 0;
-    const S = CHARM.shape[gender];
+    if (!m) return 50;
+    const S = CHARM.shapeScore[gender];
     if (gender === 'female') {
       const whr = m.waist / m.hips;
-      let v = clamp(S.whr.max - Math.abs(whr - S.whr.ideal) * S.whr.slope, S.whr.min, S.whr.max);
-      v += clamp(S.cup.max - Math.abs(m.cup - S.cup.ideal) * S.cup.perStep, S.cup.min, S.cup.max);
-      return Math.round(v * 10) / 10;
+      const whrPart = S.whr.base - Math.abs(whr - S.whr.ideal) * S.whr.slope;
+      const cupPart = Math.max(S.cup.min,
+        S.cup.bonus - Math.abs(m.cup - S.cup.ideal) * S.cup.step);
+      return Math.round(clamp(whrPart + cupPart, 0, 100));
     }
     const cwr = m.chest / m.waist;
-    return Math.round(clamp((cwr - S.cwr.pivot) * S.cwr.slope, S.cwr.min, S.cwr.max) * 10) / 10;
+    return Math.round(clamp(S.cwr.base + (cwr - S.cwr.pivot) * S.cwr.slope, 0, 100));
   }
 
-  /* ทุนเสน่ห์ไม่รวมโบนัสสัดส่วน — สัดส่วนคิดสดใน charmFor เสมอ
-     เพราะทรงเปลี่ยนได้ตลอดชีวิต (หน้าอกโตช่วงสาว ขยายอีกตอนคลอดบุตร) */
+  /** คะแนนท่วงท่า 0–100 จากพลังยุทธ์ ณ ปัจจุบัน */
+  function poiseScore(power) {
+    return Math.round(clamp((power / CHARM.poise.powerRef) * 100, 0, 100));
+  }
 
-  /** ทุนเสน่ห์ติดตัว คิดจากใบหน้า(สุ่ม) + ประเภทหุ่น + สุขภาพ */
-  function rollCharmBase(body, bonus) {
-    const raw = randNormal(CHARM.base.mean, CHARM.base.sd, CHARM.base.min, CHARM.base.max);
-    const build = CHARM.buildBonus[body.buildId] || 0;
+  /** หน้าตาแต่กำเนิด 0–100 (เก็บใน charmBase) */
+  function rollFace(bonus) {
+    const f = CHARM.face;
     return Math.round(
-      clamp(raw + build + healthAdjust(body.bmi) + (bonus || 0),
-        CHARM.base.min, CHARM.base.max));
+      clamp(randNormal(f.mean, f.sd, f.min, f.max) + (bonus || 0), f.min, f.max));
   }
 
-  /** ทุนเสน่ห์ของลูก อิงค่าเฉลี่ยพ่อแม่ตามสัดส่วน heredity */
-  function inheritCharmBase(father, mother, body) {
+  /** หน้าตาของลูก อิงค่าเฉลี่ยพ่อแม่ตามสัดส่วน heredity ที่เหลือดึงกลับค่ากลาง */
+  function inheritFace(father, mother) {
+    const f = CHARM.face;
     const parents = [father, mother].filter((p) => p && p.charmBase != null);
-    if (!parents.length) return rollCharmBase(body);
+    if (!parents.length) return rollFace();
     const avg = parents.reduce((s, p) => s + p.charmBase, 0) / parents.length;
-    const h = CHARM.heredity;
-    const drift = randNormal(0, CHARM.base.sd, -CHARM.base.sd * 3, CHARM.base.sd * 3);
-    const build = CHARM.buildBonus[body.buildId] || 0;
+    const drift = randNormal(0, f.sd, -f.sd * 3, f.sd * 3);
     return Math.round(
-      clamp(avg * h + CHARM.base.mean * (1 - h) + drift * (1 - h)
-          + build + healthAdjust(body.bmi),
-        CHARM.base.min, CHARM.base.max));
+      clamp(avg * f.heredity + (f.mean + drift) * (1 - f.heredity), f.min, f.max));
+  }
+
+  /** แยกคะแนนเสน่ห์เป็นรายองค์ประกอบ — ใช้ทั้งคำนวณและแสดงผลบนแผ่นข้อมูล */
+  function charmParts(p) {
+    return {
+      face: p.charmBase,
+      shape: shapeScore(p.gender, p.body),
+      health: healthScore(p.body.bmi),
+      poise: poiseScore(p.power || 0),
+    };
   }
 
   function charmAgeFactor(age) {
@@ -370,13 +383,14 @@
     return CHARM.curve[CHARM.curve.length - 1].to;
   }
 
-  /** เสน่ห์ที่แสดงจริง ณ อายุปัจจุบัน รวมท่วงท่าจากพลังยุทธ์และทรงปัจจุบัน */
+  /** เสน่ห์ที่แสดงจริง ณ อายุปัจจุบัน — รวมสี่องค์ประกอบตามน้ำหนัก */
   function charmFor(p) {
     if (!p.alive) return 0;
-    const poise = Math.min(CHARM.powerBonusMax,
-      (p.power / CHARM.powerRef) * CHARM.powerBonusMax);
-    return Math.round(clamp(
-      p.charmBase * charmAgeFactor(p.age) + poise + shapeAdjust(p.gender, p.body), 0, 100));
+    const W = CHARM.weights;
+    const c = charmParts(p);
+    // หน้าตากับสัดส่วนโรยราตามวัย สุขภาพและท่วงท่าแปรตามค่าปัจจุบันอยู่แล้ว
+    const looks = (c.face * W.face + c.shape * W.shape) * charmAgeFactor(p.age);
+    return Math.round(clamp(looks + c.health * W.health + c.poise * W.poise, 0, 100));
   }
 
   /** ชื่อระดับเสน่ห์ตามคะแนนและเพศ */
@@ -428,7 +442,7 @@
     };
     refreshBust(p);   // หน้าอกสตรีตามวัย ณ ตอนสร้าง (คนนอกอาจเข้ามาตอนยังสาว)
     p.powerBase = opts.powerBase != null ? opts.powerBase : rollPowerBase(p.body.buildId);
-    p.charmBase = opts.charmBase != null ? opts.charmBase : rollCharmBase(p.body);
+    p.charmBase = opts.charmBase != null ? opts.charmBase : rollFace();
     p.income = incomeFor(p);
     p.power = powerFor(p);
     p.charm = charmFor(p);
@@ -460,7 +474,7 @@
       aptitude: clamp(Math.random() + q * B.aptitude, 0, 1),
       powerBase: Math.round(clamp(
         rollPowerBase(body.buildId) + q * B.power, POWER.base.min, POWER.base.max)),
-      charmBase: rollCharmBase(body, q * B.charm),
+      charmBase: rollFace(q * B.charm),
     });
   }
 
@@ -476,7 +490,7 @@
       motherId: mother.id,
       body,
       powerBase: inheritPowerBase(father, mother, body.buildId),
-      charmBase: inheritCharmBase(father, mother, body),
+      charmBase: inheritFace(father, mother),
     });
   }
 
@@ -535,7 +549,7 @@
     rollBody, inheritBody, buildLabel, buildById,
     rollMeasure, inheritMeasure, measureLabel, cupLetter, applyMotherhood, refreshBust,
     rollPowerBase, inheritPowerBase, powerFor,
-    rollCharmBase, inheritCharmBase, charmFor, charmTier, shapeAdjust,
+    rollFace, inheritFace, charmFor, charmTier, charmParts, shapeScore,
     incomeFor, avatarSVG, randNormal, pick,
   };
 })(typeof self !== 'undefined' ? self : this);
