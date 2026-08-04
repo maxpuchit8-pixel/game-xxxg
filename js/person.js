@@ -143,6 +143,26 @@
     return m;
   }
 
+  /**
+   * ร่างกายมารดาหลังคลอดบุตร — หน้าอกและสะโพกขยาย มีโอกาสคัพขึ้นหนึ่งระดับ
+   * ทุนเสน่ห์ถูกปรับเท่าส่วนต่างของโบนัสสัดส่วนก่อน/หลัง เพื่อให้ค่าที่แสดง
+   * สอดคล้องกับทรงใหม่ (ทรงเข้าใกล้อุดมคติขึ้นก็ได้เสน่ห์เพิ่ม และกลับกัน)
+   */
+  function applyMotherhood(mother) {
+    const m = mother.body && mother.body.measure;
+    if (!m) return;
+    const g = MEASURE.motherhood;
+    const randIn = (r) => r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
+    const before = shapeAdjust('female', mother.body);
+    m.chest += randIn(g.chest);
+    m.hips += randIn(g.hips);
+    if (m.cup != null && Math.random() < g.cupUpChance)
+      m.cup = Math.min(MEASURE.cup.letters.length - 1, m.cup + 1);
+    const after = shapeAdjust('female', mother.body);
+    mother.charmBase = Math.round(
+      clamp(mother.charmBase + (after - before), CHARM.base.min, CHARM.base.max));
+  }
+
   /** อักษรคัพจากดัชนี เช่น 3 → "C" */
   function cupLetter(measure) {
     return MEASURE.cup.letters[measure.cup] || '?';
@@ -466,7 +486,7 @@
   root.Person = {
     createPerson, createOutsider, createChild,
     rollBody, inheritBody, buildLabel, buildById,
-    rollMeasure, inheritMeasure, measureLabel, cupLetter,
+    rollMeasure, inheritMeasure, measureLabel, cupLetter, applyMotherhood,
     rollPowerBase, inheritPowerBase, powerFor,
     rollCharmBase, inheritCharmBase, charmFor, charmTier, shapeAdjust,
     incomeFor, avatarSVG, randNormal, pick,

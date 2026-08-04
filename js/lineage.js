@@ -54,6 +54,7 @@
       add(baby);
       father.childIds.push(baby.id);
       mother.childIds.push(baby.id);
+      P.applyMotherhood(mother);   // หน้าอกและสะโพกของมารดาขยายหลังคลอด
       return baby;
     }
 
