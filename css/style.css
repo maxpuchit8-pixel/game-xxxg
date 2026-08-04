@@ -280,14 +280,6 @@ main {
   background: var(--gold); color: var(--btn-ink); border-radius: 9px;
 }
 
-/* สถานะความสัมพันธ์ลับบนการ์ด — มีแล้วมีเลย ป้ายไม่หายแม้ล่วงลับ */
-.secret-badge {
-  position: absolute; bottom: -9px; right: -7px;
-  font-size: 10px; font-weight: 700; padding: 1px 7px;
-  background: var(--female); color: #fff; border-radius: 9px;
-  letter-spacing: .02em;
-}
-
 .card-name {
   font-weight: 700; font-size: 13.5px; line-height: 1.25;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

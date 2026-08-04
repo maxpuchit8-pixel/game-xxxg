@@ -66,7 +66,6 @@
         title="กดเพื่อดูข้อมูล${p.name}" style="left:${x}px;top:${y}px">
         <span class="age-badge">${ageText}</span>
         ${p.isFounder ? '<span class="you-badge">ผู้เริ่มต้น</span>' : ''}
-        ${lineage.secretsOf(p.id).length ? '<span class="secret-badge">สัมพันธ์ลับ</span>' : ''}
         <div class="card-name">${p.name}</div>
         <div class="portrait">${P.avatarSVG(p)}</div>
         ${p.alive ? `<div class="card-power">พลังยุทธ์ <b>${p.power}</b></div>` : ''}
