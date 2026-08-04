@@ -205,30 +205,14 @@ main {
 }
 .banner.show { display: block; }
 
-/* =============================================================================
- * ผังตระกูล — เส้นเชื่อมวาดด้วย CSS ทั้งหมด
- * ========================================================================== */
-.tree, .children {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; justify-content: center; align-items: flex-start;
-}
-.tree { padding-bottom: 10px; }
-.unit { display: flex; flex-direction: column; align-items: center; position: relative; }
-
 /* -----------------------------------------------------------------------------
- * เส้นเชื่อมวาดด้วย SVG ไม่ใช่ CSS
+ * ผังตระกูล — ตำแหน่งทุกอย่างคำนวณมาจาก tree-layout.js แล้ววางแบบ absolute
  *
- * เดิมใช้ ::before/::after ประกอบเส้นนอนจากชิ้นครึ่งซ้าย/ครึ่งขวาของลูกแต่ละคน
- * มาต่อกัน ซึ่งขาดเป็นท่อนเสมอเมื่อผังถูกย่อด้วย scale() เป็นทศนิยม
- * เพราะรอยต่อระหว่างชิ้นตกลงบนพิกเซลไม่ลงตัว
- *
- * ตอนนี้ tree-ui.js วัดตำแหน่งการ์ดจริงหลังเรนเดอร์แล้ววาดเป็น path เดียว
- * เส้นนอนจึงเป็นเส้นยาวต่อเนื่องไม่มีรอยต่อ และเลื่อนตามการ์ดเสมอ
- * CSS ตรงนี้เหลือแค่ระยะเว้นให้มีที่วางเส้น
+ * ไม่ใช้ flexbox จัดตำแหน่งอีกต่อไป เพราะ flex item ยุบตัวเองได้บนจอแคบ
+ * (เคยวัดได้ว่าการ์ดเหลือ 74px จาก 134px ที่จอ 390px) ผังเสียรูปแล้วเส้นที่วาด
+ * จากตำแหน่งที่วัดได้ก็ผิดตามไปหมด ตอนนี้พิกัดมาจากการคำนวณล้วน การ์ดกับเส้น
+ * จึงตรงกันเสมอ ห้ามใส่ layout property ที่ทำให้ตำแหน่งเพี้ยนจากที่คำนวณไว้
  * -------------------------------------------------------------------------- */
-.children { position: relative; }
-.children > .unit { padding: 40px 9px 0; }
-
 #tree { position: relative; }
 
 .tree-links {
@@ -239,58 +223,45 @@ main {
   fill: none; stroke: var(--connector);
   stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter;
   /* คงความหนาเส้นไว้ 2px บนหน้าจอเสมอ ไม่ให้ถูกย่อไปตาม scale() ของผัง
-     ถ้าไม่ใส่ พอผังย่อเหลือ 43% เส้นจะบางเหลือ 0.86px แล้วหายเป็นช่วงๆ
-     ซึ่งดูเหมือนเส้นขาด — เจอเฉพาะบนมือถือเพราะที่นั่นผังถูกย่อลงมากกว่า
-     ห้ามใส่ shape-rendering: crispEdges คู่กัน เพราะการปัดขอบเข้าพิกเซลเต็ม
-     จะทำให้เส้นบางกว่า 1px หายไปเลย */
+     ถ้าไม่ใส่ พอย่อเหลือ 43% เส้นจะบางเหลือ 0.86px จนแทบมองไม่เห็น */
   vector-effect: non-scaling-stroke;
 }
-/* การ์ดต้องอยู่เหนือเส้น ไม่งั้นเส้นจะพาดทับกลางการ์ด */
-.tree { position: relative; z-index: 1; }
 
-/* -----------------------------------------------------------------------------
- * ห้ามยุบตัว — สำคัญมากต่อความถูกต้องของผังบนจอแคบ
- *
- * .card .couple .unit ล้วนเป็น flex item ซึ่งโดยปริยาย flex-shrink เป็น 1
- * บนจอมือถือที่แคบกว่าผัง ทุกชิ้นจะถูกบีบ (เคยวัดได้ว่าการ์ดเหลือ 74px จาก 134px)
- * ทำให้ผังเสียรูปและตำแหน่งที่วัดไว้วาดเส้นเพี้ยนตามไปหมด
- * ผังต้องคงขนาดจริงเสมอ แล้วให้ viewport เป็นตัวย่อ/เลื่อนแทน
- * -------------------------------------------------------------------------- */
-.unit, .couple, .card { flex-shrink: 0; }
-
-/* คู่สมรสวางเคียงกัน คั่นด้วยปมเส้น */
-.couple { display: flex; align-items: center; }
+/* ปมเส้นระหว่างคู่สมรส */
 .knot {
+  position: absolute; z-index: 1;
   width: 22px; height: 2px; background: var(--connector);
-  flex-shrink: 0; position: relative;
 }
 .knot::after {
-  content: ''; position: absolute; top: -3px; left: 50%; margin-left: -4px;
-  width: 8px; height: 8px; background: var(--ground);
+  content: ''; position: absolute; top: -4px; left: 50%; margin-left: -5px;
+  width: 10px; height: 10px; background: var(--ground);
   border: 2px solid var(--connector); border-radius: 50%;
 }
 
 /* =============================================================================
- * การ์ดตัวละคร
+ * การ์ดตัวละคร — ขนาดคงที่ ต้องตรงกับ CARD_W/CARD_H ใน tree-layout.js
  * ========================================================================== */
 .card {
-  width: 134px; padding: 8px 8px 7px; position: relative;
+  position: absolute; z-index: 2;
+  width: 134px; height: 178px;
+  padding: 8px 8px 7px;
   border: 2px solid var(--line); border-radius: 6px;
   background: var(--surface); box-shadow: var(--shadow);
-  text-align: center; cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
+  text-align: center; cursor: pointer; overflow: hidden;
+  display: flex; flex-direction: column; align-items: stretch;
+  transition: box-shadow .12s ease, border-color .12s ease;
 }
-/* ไม่ขยับตำแหน่งการ์ดตอน hover เพราะเส้นเชื่อมถูกวาดจากพิกัดที่วัดไว้แล้ว
-   ถ้าการ์ดเลื่อน เส้นจะดูหลุดจากการ์ดทันที */
 .card:hover { border-color: var(--gold); }
 .card:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .card.male   { border-color: var(--male);   background: var(--male-soft); }
 .card.female { border-color: var(--female); background: var(--female-soft); }
 .card.founder { box-shadow: 0 0 0 2px var(--gold), var(--shadow); }
-.card.focus { box-shadow: 0 0 0 3px var(--gold-bright), var(--shadow); }
+.card.focus { box-shadow: 0 0 0 3px var(--gold-bright), var(--shadow); z-index: 3; }
 .card.married-in { border-style: dashed; }
 .card.dead { opacity: .5; filter: grayscale(.7); }
 
+/* รายได้ดันไปชิดขอบล่างเสมอ การ์ดจึงดูเป็นระเบียบแม้เนื้อหาไม่เท่ากัน */
+.card-income { margin-top: auto; }
 .age-badge {
   position: absolute; top: -9px; left: -7px;
   min-width: 24px; height: 24px; padding: 0 5px;
