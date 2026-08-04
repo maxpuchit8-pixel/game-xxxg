@@ -55,7 +55,10 @@ for (const f of ['data.js', 'scenario-engine.js', 'person.js', 'lineage.js', 'st
 `root.GameData` **ตอนโหลดไฟล์** ไม่ใช่ตอนเรียกใช้ ดังนั้น `data.js` ต้องมาก่อนเสมอ
 สลับลำดับ `<script>` ใน `index.html` แล้วเกมจะพังทันทีด้วย TypeError ที่อ่านไม่รู้เรื่อง
 
-ลำดับปัจจุบัน: `data → scenario-engine → person → lineage → clock → state → viewport → ui → tree-layout → tree-ui → main`
+ลำดับปัจจุบัน: `data → appearance-events → scenario-engine → person → lineage → clock → state → viewport → ui → tree-layout → tree-ui → main`
+
+`appearance-events.js` เป็นไฟล์เนื้อหาที่ผู้ใช้แก้เองได้ (เทมเพลตอีเวนต์รูปโฉม พร้อม
+คู่มือในหัวไฟล์) ไม่พึ่ง GameData ตอนโหลด — ตัวประมวลผลอยู่ใน main.js (`rollAppearanceEvent`)
 
 ใช้สคริปต์แบบ global (UMD/IIFE) ไม่ใช่ ES modules โดยตั้งใจ เพื่อให้ดับเบิลคลิกเปิด
 `index.html` จากไฟล์ตรงๆ ได้โดยไม่ติด CORS — อย่าเปลี่ยนเป็น `import`/`export`
