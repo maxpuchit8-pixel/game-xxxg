@@ -115,6 +115,17 @@
   }
 
   const genderWord = (g) => (g === 'male' ? 'บุรุษ' : 'สตรี');
+
+  /**
+   * ชื่อพร้อมป้ายรุ่นสำหรับข้อความบันทึก — Gen 0 คือพ่อแม่ตั้งต้น Gen 1 คือรุ่นผู้เล่น
+   * คนแต่งเข้านับรุ่นตามคู่ครองสายเลือดของตน คนนอกที่ยังไม่แต่งเข้าไม่มีป้าย
+   */
+  function nm(p) {
+    if (!p) return '';
+    const anchor = p.isBlood ? p : (p.spouseId ? lineage.get(p.spouseId) : null);
+    if (!anchor) return p.name;
+    return `${p.name}(Gen ${lineage.generationOf(anchor) - 1})`;
+  }
   const bodyWord = (p) =>
     `สูง ${p.body.height} ซม. หนัก ${p.body.weight} กก. หุ่น${P.buildLabel(p.body)} ` +
     `สัดส่วน ${P.measureLabel(p)} นิ้ว ` +
@@ -193,7 +204,7 @@
       p.charm = P.charmFor(p);   // เสน่ห์พีคช่วงวัยหนุ่มสาวแล้วถดถอย
       if (p.age === CONFIG.adultAge) {
         structureDirty = true;
-        ui.logEvent(`${p.name}เติบโตเป็นผู้ใหญ่เต็มตัว — ${bodyWord(p)}`, 'milestone');
+        ui.logEvent(`${nm(p)}เติบโตเป็นผู้ใหญ่เต็มตัว — ${bodyWord(p)}`, 'milestone');
       }
     });
   }
@@ -205,7 +216,7 @@
     game.addReputation(3);
     structureDirty = true;
     ui.logEvent(
-      `${p.name}ครองคู่กับ${partner.name} ${partner.origin} — ` +
+      `${nm(p)}ครองคู่กับ${nm(partner)} ${partner.origin} — ` +
       `${genderWord(partner.gender)}วัย ${partner.age} ปี ${bodyWord(partner)}`,
       'marriage'
     );
@@ -230,7 +241,7 @@
         subjectId: p.id,
         person: partner,
         autoValue: 'yes',
-        text: `${partner.name} ${partner.origin} มาทาบทามขอครองคู่กับ${p.name} ` +
+        text: `${partner.name} ${partner.origin} มาทาบทามขอครองคู่กับ${nm(p)} ` +
               'จะรับไว้หรือรอผู้อื่นในภายหน้า',
         options: [
           { label: 'รับไว้เป็นคู่ครอง', value: 'yes', note: 'ชื่อเสียง +3 และเริ่มมีทายาทได้', tone: 'accept' },
@@ -238,7 +249,7 @@
         ],
       }, (v) => {
         if (v === 'yes') completeMarriage(p, partner);
-        else ui.logEvent(`${p.name}ปฏิเสธการทาบทามของ${partner.name}อย่างสุภาพ`, 'event');
+        else ui.logEvent(`${nm(p)}ปฏิเสธการทาบทามของ${partner.name}อย่างสุภาพ`, 'event');
       });
     });
   }
@@ -259,27 +270,27 @@
         // โลกภายนอกเห็นเป็นข่าวดีธรรมดาของสามีภรรยา — ชื่อเสียงเพิ่มตามปกติ
         game.addReputation(2);
         ui.logEvent(
-          `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
-          `บุตรของ${husband.name}และ${mother.name}`,
+          `${nm(mother)}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${nm(baby)} ` +
+          `บุตรของ${nm(husband)}และ${nm(mother)}`,
           'birth'
         );
         ui.logEvent(
-          `แต่มีเพียง${mother.name}ที่รู้ว่าบิดาแท้จริงของ${baby.name}คือ${father.name} ` +
+          `แต่มีเพียง${nm(mother)}ที่รู้ว่าบิดาแท้จริงของ${baby.name}คือ${nm(father)} ` +
           `— แม้แต่${father.name}เองก็ไม่รู้`,
           'secret'
         );
       } else {
         ui.logEvent(
-          `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
-          `โดยไม่ยอมเปิดเผยว่าบิดาคือผู้ใด — ความจริงมีเพียงนางที่รู้ว่าคือ${father.name}`,
+          `${nm(mother)}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${nm(baby)} ` +
+          `โดยไม่ยอมเปิดเผยว่าบิดาคือผู้ใด — ความจริงมีเพียงนางที่รู้ว่าคือ${nm(father)}`,
           'secret'
         );
       }
     } else {
       game.addReputation(2);
       ui.logEvent(
-        `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
-        `บุตรของ${father.name}และ${mother.name}`,
+        `${nm(mother)}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${nm(baby)} ` +
+        `บุตรของ${nm(father)}และ${nm(mother)}`,
         'birth'
       );
     }
@@ -305,7 +316,7 @@
         subject: `${father.name} และ ${mother.name}`,
         subjectId: p.id,
         autoValue: 'yes',
-        text: `${father.name}และ${mother.name}ปรึกษากันเรื่องการมีบุตร ` +
+        text: `${nm(father)}และ${nm(mother)}ปรึกษากันเรื่องการมีบุตร ` +
               (count ? `ขณะนี้มีบุตรแล้ว ${count} คน ` : 'ยังไม่มีบุตรด้วยกัน ') +
               'จะตกลงมีทายาทในช่วงนี้หรือไม่',
         options: [
@@ -314,7 +325,7 @@
         ],
       }, (v) => {
         if (v === 'yes') completeBirth(father, mother);
-        else ui.logEvent(`${father.name}และ${mother.name}ตกลงกันว่ายังไม่ใช่เวลาที่เหมาะ`, 'event');
+        else ui.logEvent(`${nm(father)}และ${nm(mother)}ตกลงกันว่ายังไม่ใช่เวลาที่เหมาะ`, 'event');
       });
     });
   }
@@ -340,9 +351,9 @@
       structureDirty = true;
       ui.logEvent(
         peaceful
-          ? `${p.name}ละสังขารอย่างสงบด้วยวัย ${p.deathAge} ปี ลูกหลานทั้งตระกูลร่วมไว้อาลัย`
+          ? `${nm(p)}ละสังขารอย่างสงบด้วยวัย ${p.deathAge} ปี ลูกหลานทั้งตระกูลร่วมไว้อาลัย`
           : P.pick(UNTIMELY_DEATHS)
-              .split('{name}').join(p.name)
+              .split('{name}').join(nm(p))
               .split('{age}').join(p.deathAge),
         'death'
       );
@@ -379,7 +390,7 @@
     lineage.addSecret(a.id, b.id, game.state.month);
     structureDirty = true;
     ui.logEvent(
-      `มีข่าวลือว่า${a.name}กับ${b.name}สนิทสนมกันเกินปกติ แต่ยังไม่มีใครยืนยันได้`,
+      `มีข่าวลือว่า${nm(a)}กับ${nm(b)}สนิทสนมกันเกินปกติ แต่ยังไม่มีใครยืนยันได้`,
       'secret'
     );
   }
@@ -406,7 +417,7 @@
       // ฉากลอบพบกัน — สีสันบรรยากาศ ไม่มีผลต่อตัวเลข
       if (Math.random() < CONFIG.secretMeetChance) {
         ui.logEvent(
-          P.pick(SECRET_MEET_TEXTS).split('{a}').join(a.name).split('{b}').join(b.name),
+          P.pick(SECRET_MEET_TEXTS).split('{a}').join(nm(a)).split('{b}').join(nm(b)),
           'secret');
       }
 
@@ -419,11 +430,11 @@
         ask({
           kind: 'birth',
           title: 'สายสัมพันธ์ลับผลิดอก',
-          subject: `${mother.name} กับ ${father.name}`,
+          subject: `${nm(mother)} กับ ${nm(father)}`,
           subjectId: 'secretbaby:' + mother.id,
           person: bloodOne,
           autoValue: 'no',   // โหมดอัตโนมัติไม่สร้างบุตรลับเอง — เรื่องใหญ่เกินกว่าจะปล่อยสุ่ม
-          text: `${mother.name}กับ${father.name}แอบคบหากันมาเนิ่นนาน ` +
+          text: `${nm(mother)}กับ${nm(father)}แอบคบหากันมาเนิ่นนาน ` +
                 `ค่ำคืนล่าสุดร้อนแรงเกินห้ามใจ — จะปล่อยให้สายสัมพันธ์นี้ผลิดอกออกผลหรือไม่`,
           options: [
             { label: 'ปล่อยไปตามหัวใจ', value: 'yes', note: 'กำเนิดบุตรลับ', tone: 'accept' },
@@ -439,7 +450,7 @@
         r.exposed = true;
         game.addReputation(CONFIG.secretExposeRep);
         ui.logEvent(
-          `ความลับแตก! ผู้คนจับได้ว่า${a.name}กับ${b.name}ลอบคบหากัน ` +
+          `ความลับแตก! ผู้คนจับได้ว่า${nm(a)}กับ${nm(b)}ลอบคบหากัน ` +
           `ตระกูลตกเป็นขี้ปากทั้งนคร (ชื่อเสียง ${CONFIG.secretExposeRep})`,
           'secret');
       }
@@ -553,7 +564,7 @@
   /** แทนคำใน title/text/ข้อความผลลัพธ์ของอีเวนต์รูปโฉม */
   function fillAppearance(text, p, place, extra) {
     const tokens = Object.assign({
-      '{name}': p.name,
+      '{name}': nm(p),
       '{place}': place,
       '{measure}': P.measureLabel(p),
       '{tier}': P.charmTier(p.charm, p.gender),
@@ -669,12 +680,12 @@
     if (eff.secretWithPartner && partner) {
       lineage.addSecret(p.id, partner.id, game.state.month);
       structureDirty = true;
-      ui.logEvent(`มีข่าวลือว่า${p.name}กับ${partner.name}สนิทสนมกันเกินปกติ`, 'secret');
+      ui.logEvent(`มีข่าวลือว่า${nm(p)}กับ${nm(partner)}สนิทสนมกันเกินปกติ`, 'secret');
     }
     if (eff.secret && !eff.child) {
       const lover = makeSecretFor(p);
       if (lover) {
-        ui.logEvent(`มีข่าวลือว่า${p.name}กับ${lover.name}สนิทสนมกันเกินปกติ`, 'secret');
+        ui.logEvent(`มีข่าวลือว่า${nm(p)}กับ${nm(lover)}สนิทสนมกันเกินปกติ`, 'secret');
       }
     }
     if (eff.child) eventChild(p, eff.child, partner);   // 'lover' สร้างคู่ลับให้เองถ้ายังไม่มี
@@ -708,7 +719,7 @@
 
     // token เพิ่มเติมของคู่กรณี — คู่เขย/สะใภ้ หรือคนแปลกหน้าที่สุ่มขึ้นใหม่
     const tokens = {};
-    if (partner) tokens['{partner}'] = partner.name;
+    if (partner) tokens['{partner}'] = nm(partner);
     if (evt.partner === 'stranger') {
       const strangers = makeStrangers(evt, p);
       tokens['{stranger}'] = strangers[0] || '';
@@ -825,8 +836,8 @@
     });
     ui.renderHUD();
     ui.logEvent(
-      `พงศาวดารเริ่มต้นขึ้นที่${player.name} ${genderWord(player.gender)}วัย ${player.age} ปี ` +
-      `${bodyWord(player)} บุตรของ${father.name}และ${mother.name} — ` +
+      `พงศาวดารเริ่มต้นขึ้นที่${nm(player)} ${genderWord(player.gender)}วัย ${player.age} ปี ` +
+      `${bodyWord(player)} บุตรของ${nm(father)}และ${nm(mother)} — ` +
       'นับจากนี้ทุกคนในตระกูลคือคนของท่าน',
       'milestone'
     );
