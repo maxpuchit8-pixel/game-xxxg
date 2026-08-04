@@ -354,9 +354,12 @@ main {
 /* =============================================================================
  * แผ่นข้อมูลตัวละคร — เปิดจากการกดการ์ดในผัง
  * ========================================================================== */
+/* ห้ามใช้ align-items: center กับกล่องที่อาจสูงกว่าจอ — flexbox จะตัดส่วนหัว
+   ทิ้งเหนือพื้นที่เลื่อนจนปุ่มปิดกดไม่ได้ (เจอบนมือถือ) ใช้ margin: auto
+   ที่ตัวกล่องแทน: สั้นก็อยู่กลางจอ ยาวก็เลื่อนถึงหัวท้ายได้เสมอ */
 .detail-overlay {
   position: fixed; inset: 0; z-index: 90;
-  display: none; align-items: center; justify-content: center;
+  display: none; align-items: flex-start; justify-content: center;
   padding: 20px; overflow-y: auto;
   background: color-mix(in srgb, var(--ground) 72%, transparent);
   backdrop-filter: blur(2px);
@@ -364,7 +367,7 @@ main {
 .detail-overlay.show { display: flex; }
 
 .detail-panel {
-  position: relative; width: 100%; max-width: 460px;
+  position: relative; width: 100%; max-width: 460px; margin: auto;
   background: var(--surface); border: 2px solid var(--line);
   border-radius: 8px; padding: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, .35);
 }
@@ -444,9 +447,10 @@ main {
 /* =============================================================================
  * กล่องตัดสินใจ — โผล่กลางจอและหยุดเวลาไว้จนกว่าจะเลือก
  * ========================================================================== */
+/* กติกาเดียวกับ .detail-overlay: margin auto ที่กล่อง ไม่ใช่ center ที่กรอบ */
 .decision-overlay {
   position: fixed; inset: 0; z-index: 80;
-  display: none; align-items: center; justify-content: center;
+  display: none; align-items: flex-start; justify-content: center;
   padding: 24px; overflow-y: auto;
   background: color-mix(in srgb, var(--ground) 78%, transparent);
   backdrop-filter: blur(2px);
@@ -454,7 +458,7 @@ main {
 .decision-overlay.show { display: flex; }
 
 .decision-panel {
-  width: 100%; max-width: 430px; text-align: center;
+  width: 100%; max-width: 430px; text-align: center; margin: auto;
   background: var(--surface); border: 2px solid var(--gold);
   border-radius: 6px; padding: 22px 24px 20px;
   box-shadow: 0 6px 28px rgba(0, 0, 0, .3);

@@ -205,6 +205,12 @@
 
       host.classList.add('show');
       host.querySelector('.detail-close').addEventListener('click', hidePersonDetail);
+      // กดฉากหลังนอกแผ่นเพื่อปิดได้ — ช่วยจอมือถือที่แผ่นยาวจนปุ่มปิดอยู่ไกล
+      // (ผูกครั้งเดียวพอ host เป็น element เดิมตลอดทั้งเกม)
+      if (!host.dataset.backdropBound) {
+        host.dataset.backdropBound = '1';
+        host.addEventListener('click', (e) => { if (e.target === host) hidePersonDetail(); });
+      }
       host.querySelectorAll('.kin[data-goto]').forEach((btn) => {
         btn.addEventListener('click', () => onGoto(btn.dataset.goto));
       });

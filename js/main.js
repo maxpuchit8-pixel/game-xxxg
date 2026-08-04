@@ -319,20 +319,31 @@
     });
   }
 
+  /* ข้อความการตายก่อนวัย — โลกจอมยุทธ์ตายยาก แต่เภทภัยยังมีได้นานๆ ครั้ง */
+  const UNTIMELY_DEATHS = [
+    '{name}ประสบอุบัติเหตุยานเหาะตกและจากไปด้วยวัยเพียง {age} ปี',
+    'เศษอุกกาบาตหลุดวงโคจรตกใส่เขตที่{name}พำนัก สิ้นชีพด้วยวัยเพียง {age} ปี',
+    '{name}ถูกศัตรูเก่าของตระกูลลอบสังหาร ด้วยวัยเพียง {age} ปี',
+    'โรคร้ายที่แม้แพทย์ชีวกลก็รักษาไม่ได้ คร่า{name}ไปด้วยวัยเพียง {age} ปี',
+  ];
+
   function rollDeaths() {
     lineage.living().forEach((p) => {
-      const isElder = p.age >= CONFIG.elderAge;
-      const chance = isElder
-        ? CONFIG.deathChanceBase * (1 + (p.age - CONFIG.elderAge) / 8)
+      // จากไปอย่างสงบเริ่มได้หลัง peacefulAge เท่านั้น — ก่อนหน้านั้นมีแต่เภทภัย
+      const peaceful = p.age >= CONFIG.peacefulAge;
+      const chance = peaceful
+        ? CONFIG.deathChanceBase * (1 + (p.age - CONFIG.peacefulAge) / 4)
         : (p.age >= CONFIG.adultAge ? CONFIG.illnessChancePerMonth : 0);
       if (Math.random() >= chance) return;
 
       lineage.die(p);
       structureDirty = true;
       ui.logEvent(
-        isElder
-          ? `${p.name}ถึงแก่กรรมด้วยวัย ${p.deathAge} ปี ลูกหลานร่วมไว้อาลัย`
-          : `${p.name}ล้มป่วยกะทันหันและจากไปด้วยวัยเพียง ${p.deathAge} ปี`,
+        peaceful
+          ? `${p.name}ละสังขารอย่างสงบด้วยวัย ${p.deathAge} ปี ลูกหลานทั้งตระกูลร่วมไว้อาลัย`
+          : P.pick(UNTIMELY_DEATHS)
+              .split('{name}').join(p.name)
+              .split('{age}').join(p.deathAge),
         'death'
       );
     });
@@ -512,9 +523,15 @@
     ui.logEvent(text + (suffix.length ? ` (${suffix.join(' · ')})` : ''), 'event');
   }
 
+  // pity timer — ทุกเดือนที่อีเวนต์ประเภทนั้นไม่เกิด โอกาสทบขึ้นเรื่อยๆ แล้วรีเซ็ตเมื่อเกิด
+  let choiceDrought = 0;
+  let appearanceDrought = 0;
+
   function rollChoiceEvent() {
-    if (Math.random() >= CONFIG.choiceEventChance) return;
+    const chance = CONFIG.choiceEventChance * (1 + choiceDrought * CONFIG.eventRampPerMonth);
+    if (Math.random() >= chance) { choiceDrought++; return; }
     if (!lineage.living().some((p) => p.isBlood)) return;
+    choiceDrought = 0;
 
     const evt = P.pick(CHOICE_EVENTS);
     ask({
@@ -664,7 +681,8 @@
   }
 
   function rollAppearanceEvent() {
-    if (Math.random() >= CONFIG.appearanceEventChance) return;
+    const chance = CONFIG.appearanceEventChance * (1 + appearanceDrought * CONFIG.eventRampPerMonth);
+    if (Math.random() >= chance) { appearanceDrought++; return; }
     if (!lineage.living().some((p) => p.isBlood)) return;
 
     const matches = [];
@@ -681,7 +699,8 @@
         }
       });
     });
-    if (!matches.length) return;
+    if (!matches.length) { appearanceDrought++; return; }   // ยังไม่มีใครเข้าเงื่อนไข — ทบโอกาสไว้
+    appearanceDrought = 0;
 
     const { p, evt, partner } = matches[Math.floor(Math.random() * matches.length)];
     const place = P.pick(evt.places || ['กลางนคร']);
