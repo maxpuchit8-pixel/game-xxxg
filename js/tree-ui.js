@@ -54,6 +54,22 @@
     const onSelect = opts.onSelect || function () {};
     const shouldIgnoreClick = opts.shouldIgnoreClick || function () { return false; };
 
+    /* วาดเส้นใหม่ทุกครั้งที่ขนาดของผังเปลี่ยน ไม่ว่าจะด้วยสาเหตุใด
+     * ครอบคลุมกรณีที่คาดเดายาก เช่น ฟอนต์ไทยโหลดเสร็จช้ากว่าที่วาดเส้นรอบแรก
+     * แล้วความสูงการ์ดขยับ ซึ่งจะทำให้เส้นที่วัดไว้ค้างอยู่ตำแหน่งเดิม
+     * ResizeObserver ดูขนาดที่ยังไม่ถูก transform จึงไม่ยิงตอนซูม */
+    if (typeof ResizeObserver === 'function') {
+      let pending = false;
+      new ResizeObserver(() => {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(() => { pending = false; drawLinks(); });
+      }).observe(host);
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => drawLinks());
+    }
+
     // ใช้ event delegation ครั้งเดียว การ์ดถูกวาดใหม่บ่อยมากจึงไม่ผูกทีละใบ
     host.addEventListener('click', (e) => {
       const card = e.target.closest('.card');
