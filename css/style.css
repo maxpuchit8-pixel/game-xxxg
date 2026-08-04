@@ -245,7 +245,7 @@ main {
  * ========================================================================== */
 .card {
   position: absolute; z-index: 2;
-  width: 134px; height: 206px;
+  width: 134px; height: 222px;
   padding: 8px 8px 7px;
   border: 2px solid var(--line); border-radius: 6px;
   background: var(--surface); box-shadow: var(--shadow);

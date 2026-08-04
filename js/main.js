@@ -117,6 +117,7 @@
   const genderWord = (g) => (g === 'male' ? 'บุรุษ' : 'สตรี');
   const bodyWord = (p) =>
     `สูง ${p.body.height} ซม. หนัก ${p.body.weight} กก. หุ่น${P.buildLabel(p.body)} ` +
+    `สัดส่วน ${P.measureLabel(p)} ` +
     `พลังยุทธ์ ${p.power} เสน่ห์ ${p.charm} (${P.charmTier(p.charm, p.gender)})`;
 
   /* ---------------------------------------------------------------------

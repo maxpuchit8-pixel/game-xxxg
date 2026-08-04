@@ -42,7 +42,9 @@
     /** ข้อความค่าร่างกายและเสน่ห์ — เปิดเผยเมื่อโตเต็มวัยแล้วเท่านั้น */
     function bodyText(p) {
       if (p.age < CONFIG.adultAge) return 'ยังอยู่ในวัยเยาว์';
+      const measure = P.measureLabel(p);
       return `${p.body.height} ซม. · ${p.body.weight} กก. · ${P.buildLabel(p.body)}` +
+        (measure ? `<br>สัดส่วน ${measure}` : '') +
         `<br><span class="card-charm">เสน่ห์ ${p.charm} · ${P.charmTier(p.charm, p.gender)}</span>`;
     }
 

@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  const { BODY, NAMES, CONFIG, POWER, CHARM } = root.GameData;
+  const { BODY, MEASURE, NAMES, CONFIG, POWER, CHARM } = root.GameData;
 
   let _seq = 0;
   function nextId() { return 'p' + (++_seq); }
@@ -81,6 +81,81 @@
     };
   }
 
+  /* --- สัดส่วน อก เอว สะโพก (และคัพของสตรี) --- */
+
+  const MEASURE_KEYS = ['chest', 'waist', 'hips'];
+
+  /**
+   * ค่าสัดส่วนที่ "คาด" จากส่วนสูง BMI และประเภทหุ่นของคนนั้น
+   * ใช้เป็นแกนกลางทั้งตอนสุ่มและตอนสืบทอด — ส่วนที่ห่างจากค่านี้คือ "ทรงเฉพาะตัว"
+   */
+  function predictMeasure(gender, body, key) {
+    const spec = MEASURE[gender][key];
+    const frame = body.height / BODY[gender].height.mean;
+    const adj = (MEASURE.buildAdjust[body.buildId] || {})[key] || 0;
+    return spec.base * frame + spec.fat * (body.bmi - 22) + adj;
+  }
+
+  function rollCup(bmi) {
+    const c = MEASURE.cup;
+    return Math.round(clamp(
+      randNormal(c.mean, c.sd, 0, c.letters.length - 1) + c.fat * (bmi - 22),
+      0, c.letters.length - 1));
+  }
+
+  /** สุ่มสัดส่วนของคนที่ไม่มีพ่อแม่ในเกม */
+  function rollMeasure(gender, body) {
+    const m = {};
+    for (const key of MEASURE_KEYS) {
+      const spec = MEASURE[gender][key];
+      m[key] = Math.round(
+        predictMeasure(gender, body, key) + randNormal(0, spec.sd, -spec.sd * 3, spec.sd * 3));
+    }
+    if (gender === 'female') m.cup = rollCup(body.bmi);
+    return m;
+  }
+
+  /**
+   * สัดส่วนของลูก — สืบทอด "ส่วนเบี่ยงเบนจากค่าที่คาด" ของพ่อแม่
+   * เทียบเป็นหน่วย sd ของเพศแต่ละคน จึงส่งข้ามเพศได้ (เอวคอดของแม่สู่ลูกชาย)
+   * ส่วนขนาดพื้นฐานตามมากับส่วนสูง/BMI/หุ่นที่สืบทอดไปก่อนแล้ว
+   */
+  function inheritMeasure(gender, body, father, mother) {
+    const parents = [father, mother].filter((p) => p && p.body && p.body.measure);
+    if (!parents.length) return rollMeasure(gender, body);
+    const h = MEASURE.heredity;
+    const m = {};
+    for (const key of MEASURE_KEYS) {
+      const spec = MEASURE[gender][key];
+      const parentZ = parents.reduce((s, p) =>
+        s + (p.body.measure[key] - predictMeasure(p.gender, p.body, key)) / MEASURE[p.gender][key].sd,
+        0) / parents.length;
+      const z = parentZ * h + randNormal(0, 1, -3, 3) * (1 - h);
+      m[key] = Math.round(predictMeasure(gender, body, key) + z * spec.sd);
+    }
+    if (gender === 'female') {
+      const c = MEASURE.cup;
+      const momCup = mother && mother.body.measure ? mother.body.measure.cup : null;
+      m.cup = (momCup != null && Math.random() < c.heredity)
+        ? Math.round(clamp(momCup + randNormal(0, 0.8, -2, 2), 0, c.letters.length - 1))
+        : rollCup(body.bmi);
+    }
+    return m;
+  }
+
+  /** อักษรคัพจากดัชนี เช่น 3 → "C" */
+  function cupLetter(measure) {
+    return MEASURE.cup.letters[measure.cup] || '?';
+  }
+
+  /** ข้อความสัดส่วนแบบสั้น — บุรุษ "94-79-93" สตรี "84C-66-91" */
+  function measureLabel(person) {
+    const m = person.body && person.body.measure;
+    if (!m) return '';
+    const chest = person.gender === 'female' ? m.chest + cupLetter(m) : m.chest;
+    return `${chest}-${m.waist}-${m.hips}`;
+  }
+
   /** สุ่มร่างกายของคนใหม่ที่ไม่มีพ่อแม่ในเกม (คนนอกที่แต่งเข้ามา) */
   function rollBody(gender) {
     const spec = BODY[gender];
@@ -88,7 +163,9 @@
       randNormal(spec.height.mean, spec.height.sd, spec.height.min, spec.height.max));
     const build = pickBuild();
     const bmi = randNormal(build.bmi.mean, build.bmi.sd, BODY.bmiRange.min, BODY.bmiRange.max);
-    return finishBody(height, build.id, bmi);
+    const body = finishBody(height, build.id, bmi);
+    body.measure = rollMeasure(gender, body);
+    return body;
   }
 
   /**
@@ -114,7 +191,9 @@
       : pickBuild();
 
     const bmi = randNormal(build.bmi.mean, build.bmi.sd, BODY.bmiRange.min, BODY.bmiRange.max);
-    return finishBody(height, build.id, bmi);
+    const body = finishBody(height, build.id, bmi);
+    body.measure = inheritMeasure(gender, body, father, mother);
+    return body;
   }
 
   /* ---------------------------------------------------------------------
@@ -173,25 +252,44 @@
     return -Math.min(h.maxPenalty, off * h.penaltyPerPoint);
   }
 
-  /** ทุนเสน่ห์ติดตัว คิดจากใบหน้า(สุ่ม) + ประเภทหุ่น + สุขภาพ */
-  function rollCharmBase(body, bonus) {
+  /**
+   * โบนัส/โทษเสน่ห์จากสัดส่วน — เอกลักษณ์ของเกม
+   * คิดจากอัตราส่วน ไม่ใช่ขนาดดิบ คนตัวเล็กตัวใหญ่จึงเท่าเทียมกัน ขอแค่ทรงได้รูป
+   */
+  function shapeAdjust(gender, body) {
+    const m = body.measure;
+    if (!m) return 0;
+    const S = CHARM.shape[gender];
+    if (gender === 'female') {
+      const whr = m.waist / m.hips;
+      let v = clamp(S.whr.max - Math.abs(whr - S.whr.ideal) * S.whr.slope, S.whr.min, S.whr.max);
+      v += clamp(S.cup.max - Math.abs(m.cup - S.cup.ideal) * S.cup.perStep, S.cup.min, S.cup.max);
+      return Math.round(v * 10) / 10;
+    }
+    const cwr = m.chest / m.waist;
+    return Math.round(clamp((cwr - S.cwr.pivot) * S.cwr.slope, S.cwr.min, S.cwr.max) * 10) / 10;
+  }
+
+  /** ทุนเสน่ห์ติดตัว คิดจากใบหน้า(สุ่ม) + ประเภทหุ่น + สุขภาพ + สัดส่วน */
+  function rollCharmBase(gender, body, bonus) {
     const raw = randNormal(CHARM.base.mean, CHARM.base.sd, CHARM.base.min, CHARM.base.max);
     const build = CHARM.buildBonus[body.buildId] || 0;
     return Math.round(
-      clamp(raw + build + healthAdjust(body.bmi) + (bonus || 0),
+      clamp(raw + build + healthAdjust(body.bmi) + shapeAdjust(gender, body) + (bonus || 0),
         CHARM.base.min, CHARM.base.max));
   }
 
   /** ทุนเสน่ห์ของลูก อิงค่าเฉลี่ยพ่อแม่ตามสัดส่วน heredity */
-  function inheritCharmBase(father, mother, body) {
+  function inheritCharmBase(gender, father, mother, body) {
     const parents = [father, mother].filter((p) => p && p.charmBase != null);
-    if (!parents.length) return rollCharmBase(body);
+    if (!parents.length) return rollCharmBase(gender, body);
     const avg = parents.reduce((s, p) => s + p.charmBase, 0) / parents.length;
     const h = CHARM.heredity;
     const drift = randNormal(0, CHARM.base.sd, -CHARM.base.sd * 3, CHARM.base.sd * 3);
     const build = CHARM.buildBonus[body.buildId] || 0;
     return Math.round(
-      clamp(avg * h + CHARM.base.mean * (1 - h) + drift * (1 - h) + build + healthAdjust(body.bmi),
+      clamp(avg * h + CHARM.base.mean * (1 - h) + drift * (1 - h)
+          + build + healthAdjust(body.bmi) + shapeAdjust(gender, body),
         CHARM.base.min, CHARM.base.max));
   }
 
@@ -263,7 +361,7 @@
       isFounder: !!opts.isFounder,   // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ป้ายอ้างอิงเฉยๆ)
     };
     p.powerBase = opts.powerBase != null ? opts.powerBase : rollPowerBase(p.body.buildId);
-    p.charmBase = opts.charmBase != null ? opts.charmBase : rollCharmBase(p.body);
+    p.charmBase = opts.charmBase != null ? opts.charmBase : rollCharmBase(gender, p.body);
     p.income = incomeFor(p);
     p.power = powerFor(p);
     p.charm = charmFor(p);
@@ -295,7 +393,7 @@
       aptitude: clamp(Math.random() + q * B.aptitude, 0, 1),
       powerBase: Math.round(clamp(
         rollPowerBase(body.buildId) + q * B.power, POWER.base.min, POWER.base.max)),
-      charmBase: rollCharmBase(body, q * B.charm),
+      charmBase: rollCharmBase(gender, body, q * B.charm),
     });
   }
 
@@ -311,7 +409,7 @@
       motherId: mother.id,
       body,
       powerBase: inheritPowerBase(father, mother, body.buildId),
-      charmBase: inheritCharmBase(father, mother, body),
+      charmBase: inheritCharmBase(gender, father, mother, body),
     });
   }
 
@@ -368,8 +466,9 @@
   root.Person = {
     createPerson, createOutsider, createChild,
     rollBody, inheritBody, buildLabel, buildById,
+    rollMeasure, inheritMeasure, measureLabel, cupLetter,
     rollPowerBase, inheritPowerBase, powerFor,
-    rollCharmBase, inheritCharmBase, charmFor, charmTier,
+    rollCharmBase, inheritCharmBase, charmFor, charmTier, shapeAdjust,
     incomeFor, avatarSVG, randNormal, pick,
   };
 })(typeof self !== 'undefined' ? self : this);

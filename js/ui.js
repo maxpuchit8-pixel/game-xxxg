@@ -115,13 +115,18 @@
         ? row('ส่วนสูง', p.body.height + ' ซม.') +
           row('น้ำหนัก', p.body.weight + ' กก.') +
           row('ประเภทหุ่น', P.buildLabel(p.body)) +
-          row('ดัชนีมวลกาย', p.body.bmi)
+          row('ดัชนีมวลกาย', p.body.bmi) +
+          (P.measureLabel(p)
+            ? row('สัดส่วน อก-เอว-สะโพก', P.measureLabel(p) + ' ซม.') +
+              (p.gender === 'female' ? row('คัพหน้าอก', P.cupLetter(p.body.measure)) : '')
+            : '')
         : `<p class="detail-note">ค่าร่างกายจะเปิดเผยเมื่ออายุครบ ${CONFIG.adultAge} ปี</p>`;
 
       const charmBlock = adult
         ? row('คะแนนเสน่ห์', `${p.charm} / 100`) +
           row('ระดับ', `<span class="charm-tier">${P.charmTier(p.charm, p.gender)}</span>`) +
-          row('ทุนเดิมติดตัว', p.charmBase)
+          row('ทุนเดิมติดตัว', p.charmBase) +
+          row('ผลจากสัดส่วน', (P.shapeAdjust(p.gender, p.body) >= 0 ? '+' : '') + P.shapeAdjust(p.gender, p.body))
         : '';
 
       host.innerHTML = `
@@ -212,6 +217,7 @@
              <span>${cfg.person.body.height} ซม.</span>
              <span>${cfg.person.body.weight} กก.</span>
              <span>${P.buildLabel(cfg.person.body)}</span>
+             ${P.measureLabel(cfg.person) ? `<span>${P.measureLabel(cfg.person)}</span>` : ''}
            </div>`
         : '';
 
