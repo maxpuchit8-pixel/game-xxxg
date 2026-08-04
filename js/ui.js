@@ -118,6 +118,12 @@
           row('ดัชนีมวลกาย', p.body.bmi)
         : `<p class="detail-note">ค่าร่างกายจะเปิดเผยเมื่ออายุครบ ${CONFIG.adultAge} ปี</p>`;
 
+      const charmBlock = adult
+        ? row('คะแนนเสน่ห์', `${p.charm} / 100`) +
+          row('ระดับ', `<span class="charm-tier">${P.charmTier(p.charm, p.gender)}</span>`) +
+          row('ทุนเดิมติดตัว', p.charmBase)
+        : '';
+
       host.innerHTML = `
         <div class="detail-panel ${p.gender}" role="dialog" aria-modal="true" aria-label="ข้อมูล${p.name}">
           <button class="detail-close" aria-label="ปิด">✕</button>
@@ -148,6 +154,14 @@
               ${bodyBlock}
             </section>
           </div>
+
+          ${charmBlock ? `
+          <section class="detail-charm">
+            <h4>เสน่ห์</h4>
+            ${charmBlock}
+            <p class="detail-note">เสน่ห์สูงทำให้มีผู้มาทาบทามบ่อยขึ้น
+              และดึงดูดคู่ครองที่พลังยุทธ์สูงกว่า หาเครดิตได้ดีกว่า และมีเสน่ห์มากกว่า</p>
+          </section>` : ''}
 
           <section class="detail-kin">
             <h4>เครือญาติ</h4>

@@ -39,11 +39,11 @@
       return (n >= 0 ? '+' : '') + n.toFixed(1) + ' เครดิต/เดือน';
     }
 
-    /** ข้อความค่าร่างกาย — เปิดเผยเมื่อโตเต็มวัยแล้วเท่านั้น */
+    /** ข้อความค่าร่างกายและเสน่ห์ — เปิดเผยเมื่อโตเต็มวัยแล้วเท่านั้น */
     function bodyText(p) {
-      return p.age >= CONFIG.adultAge
-        ? `${p.body.height} ซม. · ${p.body.weight} กก.<br>${P.buildLabel(p.body)}`
-        : 'ยังอยู่ในวัยเยาว์';
+      if (p.age < CONFIG.adultAge) return 'ยังอยู่ในวัยเยาว์';
+      return `${p.body.height} ซม. · ${p.body.weight} กก. · ${P.buildLabel(p.body)}` +
+        `<br><span class="card-charm">เสน่ห์ ${p.charm} · ${P.charmTier(p.charm, p.gender)}</span>`;
     }
 
     /** การ์ดตัวละครหนึ่งใบ วางตามพิกัดที่คำนวณมา */

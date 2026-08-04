@@ -245,7 +245,7 @@ main {
  * ========================================================================== */
 .card {
   position: absolute; z-index: 2;
-  width: 134px; height: 178px;
+  width: 134px; height: 206px;
   padding: 8px 8px 7px;
   border: 2px solid var(--line); border-radius: 6px;
   background: var(--surface); box-shadow: var(--shadow);
@@ -434,6 +434,11 @@ main {
 .detail-secret h4 { color: var(--female); border-bottom-color: var(--female); }
 .detail-secret .kin { border-style: dashed; border-color: var(--female); }
 .entry.secret { border-left-color: var(--female); border-left-style: dashed; }
+/* เสน่ห์ */
+.card-charm { color: var(--female); }
+.detail-charm { margin-top: 14px; }
+.detail-charm h4 { color: var(--gold); }
+.charm-tier { color: var(--female); font-weight: 700; }
 
 /* =============================================================================
  * กล่องตัดสินใจ — โผล่กลางจอและหยุดเวลาไว้จนกว่าจะเลือก

@@ -116,7 +116,8 @@
 
   const genderWord = (g) => (g === 'male' ? 'บุรุษ' : 'สตรี');
   const bodyWord = (p) =>
-    `สูง ${p.body.height} ซม. หนัก ${p.body.weight} กก. หุ่น${P.buildLabel(p.body)} พลังยุทธ์ ${p.power}`;
+    `สูง ${p.body.height} ซม. หนัก ${p.body.weight} กก. หุ่น${P.buildLabel(p.body)} ` +
+    `พลังยุทธ์ ${p.power} เสน่ห์ ${p.charm} (${P.charmTier(p.charm, p.gender)})`;
 
   /* ---------------------------------------------------------------------
    * คิวการตัดสินใจ
@@ -187,6 +188,7 @@
       p.age = newAge;
       p.income = P.incomeFor(p);
       p.power = P.powerFor(p);   // พลังยุทธ์ขึ้นลงตามวัย
+      p.charm = P.charmFor(p);   // เสน่ห์พีคช่วงวัยหนุ่มสาวแล้วถดถอย
       if (p.age === CONFIG.adultAge) {
         structureDirty = true;
         ui.logEvent(`${p.name}เติบโตเป็นผู้ใหญ่เต็มตัว — ${bodyWord(p)}`, 'milestone');
@@ -211,10 +213,13 @@
     lineage.living().forEach((p) => {
       if (!p.isBlood || p.spouseId || !p.willMarry) return;
       if (p.age < CONFIG.adultAge || p.age > CONFIG.marriageMaxAge) return;
-      if (Math.random() >= CONFIG.marriageChancePerMonth) return;
+      // เสน่ห์สูงทำให้มีผู้มาทาบทามบ่อยขึ้น และดึงดูดคนที่ดีกว่า
+      const cr = data.CHARM.marriageChanceRange;
+      const pull = cr.lo + (cr.hi - cr.lo) * Math.min(1, (p.charm || 0) / 100);
+      if (Math.random() >= CONFIG.marriageChancePerMonth * pull) return;
 
       const partnerGender = p.gender === 'male' ? 'female' : 'male';
-      const partner = P.createOutsider(partnerGender, p.age);
+      const partner = P.createOutsider(partnerGender, p.age, p.charm);
 
       ask({
         kind: 'marriage',

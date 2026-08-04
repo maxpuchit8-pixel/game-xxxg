@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  const { BODY, NAMES, CONFIG, POWER } = root.GameData;
+  const { BODY, NAMES, CONFIG, POWER, CHARM } = root.GameData;
 
   let _seq = 0;
   function nextId() { return 'p' + (++_seq); }
@@ -163,6 +163,66 @@
   }
 
   /* ---------------------------------------------------------------------
+   * เสน่ห์
+   * ------------------------------------------------------------------- */
+
+  /** โบนัส/โทษจากสุขภาพ — BMI ที่ห่างจากช่วงสมส่วนมากจะหักคะแนน */
+  function healthAdjust(bmi) {
+    const h = CHARM.healthyBmi;
+    const off = bmi < h.lo ? h.lo - bmi : (bmi > h.hi ? bmi - h.hi : 0);
+    return -Math.min(h.maxPenalty, off * h.penaltyPerPoint);
+  }
+
+  /** ทุนเสน่ห์ติดตัว คิดจากใบหน้า(สุ่ม) + ประเภทหุ่น + สุขภาพ */
+  function rollCharmBase(body, bonus) {
+    const raw = randNormal(CHARM.base.mean, CHARM.base.sd, CHARM.base.min, CHARM.base.max);
+    const build = CHARM.buildBonus[body.buildId] || 0;
+    return Math.round(
+      clamp(raw + build + healthAdjust(body.bmi) + (bonus || 0),
+        CHARM.base.min, CHARM.base.max));
+  }
+
+  /** ทุนเสน่ห์ของลูก อิงค่าเฉลี่ยพ่อแม่ตามสัดส่วน heredity */
+  function inheritCharmBase(father, mother, body) {
+    const parents = [father, mother].filter((p) => p && p.charmBase != null);
+    if (!parents.length) return rollCharmBase(body);
+    const avg = parents.reduce((s, p) => s + p.charmBase, 0) / parents.length;
+    const h = CHARM.heredity;
+    const drift = randNormal(0, CHARM.base.sd, -CHARM.base.sd * 3, CHARM.base.sd * 3);
+    const build = CHARM.buildBonus[body.buildId] || 0;
+    return Math.round(
+      clamp(avg * h + CHARM.base.mean * (1 - h) + drift * (1 - h) + build + healthAdjust(body.bmi),
+        CHARM.base.min, CHARM.base.max));
+  }
+
+  function charmAgeFactor(age) {
+    let prev = 0;
+    for (const seg of CHARM.curve) {
+      if (age < seg.until) {
+        const t = (age - prev) / (seg.until - prev);
+        return seg.from + (seg.to - seg.from) * t;
+      }
+      prev = seg.until;
+    }
+    return CHARM.curve[CHARM.curve.length - 1].to;
+  }
+
+  /** เสน่ห์ที่แสดงจริง ณ อายุปัจจุบัน รวมท่วงท่าที่มาจากพลังยุทธ์ */
+  function charmFor(p) {
+    if (!p.alive) return 0;
+    const poise = Math.min(CHARM.powerBonusMax,
+      (p.power / CHARM.powerRef) * CHARM.powerBonusMax);
+    return Math.round(clamp(p.charmBase * charmAgeFactor(p.age) + poise, 0, 100));
+  }
+
+  /** ชื่อระดับเสน่ห์ตามคะแนนและเพศ */
+  function charmTier(score, gender) {
+    let label = CHARM.tiers[0];
+    for (const t of CHARM.tiers) if (score >= t.min) label = t;
+    return gender === 'male' ? label.male : label.female;
+  }
+
+  /* ---------------------------------------------------------------------
    * รายได้ต่อเดือน — เด็กเป็นภาระ วัยทำงานหาได้ วัยชราหาได้น้อยลง
    * ------------------------------------------------------------------- */
   function incomeFor(person) {
@@ -203,22 +263,39 @@
       isFounder: !!opts.isFounder,   // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ป้ายอ้างอิงเฉยๆ)
     };
     p.powerBase = opts.powerBase != null ? opts.powerBase : rollPowerBase(p.body.buildId);
+    p.charmBase = opts.charmBase != null ? opts.charmBase : rollCharmBase(p.body);
     p.income = incomeFor(p);
     p.power = powerFor(p);
+    p.charm = charmFor(p);
     return p;
   }
 
-  /** สุ่มคนนอกตระกูลเพื่อมาเป็นคู่ครอง — อายุไล่เลี่ยกับเจ้าตัว */
-  function createOutsider(gender, aroundAge) {
+  /**
+   * สุ่มคนนอกตระกูลเพื่อมาเป็นคู่ครอง — อายุไล่เลี่ยกับเจ้าตัว
+   *
+   * suitorCharm คือเสน่ห์ของฝ่ายที่กำลังหาคู่ ยิ่งสูงยิ่งดึงดูดคนที่
+   * เก่งกว่า หาเงินได้ดีกว่า และมีเสน่ห์มากกว่า ตามที่ตั้งไว้ใน CHARM.partnerBonus
+   */
+  function createOutsider(gender, aroundAge, suitorCharm) {
     const spread = CONFIG.partnerAgeSpread;
     const age = Math.max(CONFIG.adultAge,
       Math.round(aroundAge + (Math.random() * 2 - 1) * spread));
+
+    const q = clamp((suitorCharm || 0) / 100, 0, 1);
+    const B = CHARM.partnerBonus;
+    const body = rollBody(gender);
+
     return createPerson({
       gender,
       age,
+      body,
       isBlood: false,
       origin: pick(NAMES.outsiderClans),
       willMarry: true,   // มาเพื่อครองคู่อยู่แล้ว
+      aptitude: clamp(Math.random() + q * B.aptitude, 0, 1),
+      powerBase: Math.round(clamp(
+        rollPowerBase(body.buildId) + q * B.power, POWER.base.min, POWER.base.max)),
+      charmBase: rollCharmBase(body, q * B.charm),
     });
   }
 
@@ -234,6 +311,7 @@
       motherId: mother.id,
       body,
       powerBase: inheritPowerBase(father, mother, body.buildId),
+      charmBase: inheritCharmBase(father, mother, body),
     });
   }
 
@@ -291,6 +369,7 @@
     createPerson, createOutsider, createChild,
     rollBody, inheritBody, buildLabel, buildById,
     rollPowerBase, inheritPowerBase, powerFor,
+    rollCharmBase, inheritCharmBase, charmFor, charmTier,
     incomeFor, avatarSVG, randNormal, pick,
   };
 })(typeof self !== 'undefined' ? self : this);
