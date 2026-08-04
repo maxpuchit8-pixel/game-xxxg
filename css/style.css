@@ -1,0 +1,212 @@
+/* =============================================================================
+ * style.css — ธีม "สมุดไทยดำ / สมุดไทยขาว" ของเกมสายใยตระกูล
+ * โทเคนสีทั้งหมดอยู่ที่ :root — เปลี่ยนธีมทั้งเกมได้จากบล็อกบนสุดนี้
+ * ========================================================================== */
+
+/* ============ โทเคนสี: สมุดไทยขาว (สว่าง, ค่าตั้งต้น) ============ */
+:root {
+  --ground: #f2e9d4;      /* กระดาษข่อยขาว */
+  --surface: #e9ddc2;
+  --surface-2: #e0d2b3;
+  --line: #c9b68d;
+  --ink: #4a3826;         /* หมึกน้ำตาล */
+  --ink-dim: #7a6a52;
+  --gold: #8a6a1f;        /* หรดาลบนพื้นสว่าง = ทองเข้ม */
+  --gold-bright: #a37c1e;
+  --chad: #b23c1e;        /* ชาดแดง */
+  --jade: #4f7a42;
+  --chip-bg: #ddceac;
+  --btn-ink: #f6efdd;
+  --shadow: 0 2px 10px rgba(74, 56, 38, .18);
+}
+
+/* ============ สมุดไทยดำ (มืด) — ตาม OS และตามสวิตช์ธีมของผู้ชม ============ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #1b1613;
+    --surface: #28211a;
+    --surface-2: #322921;
+    --line: #4a3c2c;
+    --ink: #d8ccb2;
+    --ink-dim: #9c8c70;
+    --gold: #e0c069;
+    --gold-bright: #efd07a;
+    --chad: #d0603c;
+    --jade: #8aa87b;
+    --chip-bg: #382e23;
+    --btn-ink: #221b14;
+    --shadow: 0 2px 12px rgba(0, 0, 0, .45);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #1b1613; --surface: #28211a; --surface-2: #322921; --line: #4a3c2c;
+  --ink: #d8ccb2; --ink-dim: #9c8c70; --gold: #e0c069; --gold-bright: #efd07a;
+  --chad: #d0603c; --jade: #8aa87b; --chip-bg: #382e23; --btn-ink: #221b14;
+  --shadow: 0 2px 12px rgba(0, 0, 0, .45);
+}
+:root[data-theme="light"] {
+  --ground: #f2e9d4; --surface: #e9ddc2; --surface-2: #e0d2b3; --line: #c9b68d;
+  --ink: #4a3826; --ink-dim: #7a6a52; --gold: #8a6a1f; --gold-bright: #a37c1e;
+  --chad: #b23c1e; --jade: #4f7a42; --chip-bg: #ddceac; --btn-ink: #f6efdd;
+  --shadow: 0 2px 10px rgba(74, 56, 38, .18);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: 'Leelawadee UI', 'Sarabun', 'Tahoma', sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 100vh;
+}
+.display {
+  font-family: 'Angsana New', 'AngsanaUPC', 'Cordia New', 'Leelawadee UI', serif;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+/* ============ แถบหัวเรื่อง ============ */
+header {
+  border-bottom: 2px solid var(--gold);
+  background: var(--surface);
+  padding: 14px 22px 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px;
+}
+.title-block { display: flex; align-items: baseline; gap: 14px; }
+h1 {
+  margin: 0; font-size: 40px; line-height: 1.05; color: var(--gold);
+  text-wrap: balance;
+}
+.subtitle { color: var(--ink-dim); font-size: 13px; }
+.stats { display: flex; gap: 18px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.stat { text-align: right; }
+.stat .label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-dim);
+}
+.stat .value {
+  font-variant-numeric: tabular-nums; color: var(--gold-bright);
+  font-family: 'Angsana New', serif; font-weight: 700; font-size: 28px; line-height: 1.1;
+}
+.stat .value.rep { color: var(--ink); }
+#dayLabel { color: var(--ink); }
+
+button {
+  font-family: inherit; font-size: 15px; cursor: pointer;
+  border: 1px solid var(--gold); border-radius: 3px;
+  padding: 9px 20px; background: var(--gold); color: var(--btn-ink);
+  transition: filter .12s ease;
+}
+button:hover { filter: brightness(1.08); }
+button:focus-visible { outline: 2px solid var(--chad); outline-offset: 2px; }
+button.secondary { background: transparent; color: var(--gold); }
+button:disabled { opacity: .45; cursor: default; }
+#nextDay { font-weight: 700; font-size: 16px; }
+
+/* ============ โครงหลัก ============ */
+main {
+  display: grid; gap: 18px; padding: 18px 22px 40px;
+  grid-template-columns: 300px minmax(0, 1fr) 320px;
+  max-width: 1400px; margin: 0 auto;
+}
+@media (max-width: 1080px) {
+  main { grid-template-columns: 280px minmax(0, 1fr); }
+  #relPanel { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; }
+  #relPanel { grid-column: auto; }
+}
+
+section > h2 {
+  margin: 0 0 10px; font-size: 26px; color: var(--gold);
+  font-family: 'Angsana New', serif; font-weight: 700; line-height: 1.2;
+  border-bottom: 1px solid var(--line); padding-bottom: 4px;
+}
+.hint { font-size: 12.5px; color: var(--ink-dim); margin: 0 0 12px; }
+
+/* ============ ทะเบียนตระกูล ============ */
+.char-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+  padding: 10px 12px; margin-bottom: 10px; box-shadow: var(--shadow);
+}
+.char-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.char-name { font-weight: 700; font-size: 15.5px; }
+.chip {
+  font-size: 11px; padding: 1px 8px; border-radius: 10px;
+  background: var(--chip-bg); color: var(--ink-dim); border: 1px solid var(--line);
+}
+.chip.married { color: var(--chad); border-color: var(--chad); }
+.char-role { font-size: 12.5px; color: var(--ink-dim); margin: 1px 0 7px; }
+.char-card select {
+  width: 100%; font-family: inherit; font-size: 14px; padding: 5px 8px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 3px;
+}
+.char-card select:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+.actions { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.actions button { width: 100%; }
+.action-note { font-size: 12px; color: var(--ink-dim); margin: 0; }
+
+/* ============ จดหมายเหตุ ============ */
+#chronicle { min-width: 0; }
+.banner {
+  border: 1px solid var(--chad); background: var(--surface); color: var(--chad);
+  border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; font-weight: 700;
+  display: none;
+}
+.banner.gold { border-color: var(--gold); color: var(--gold-bright); }
+.banner.show { display: block; }
+
+.day-group { margin-bottom: 20px; }
+.day-title {
+  font-family: 'Angsana New', serif; font-weight: 700; font-size: 24px;
+  color: var(--gold); margin: 0 0 6px; line-height: 1.2;
+}
+.entry {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+  padding: 10px 14px 10px 16px; margin-bottom: 8px; position: relative;
+  box-shadow: var(--shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .entry.fresh { animation: inkin .5s ease; }
+  @keyframes inkin {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+.seal {
+  position: absolute; left: -6px; top: 12px; width: 12px; height: 12px;
+  border-radius: 50%; border: 2px solid var(--ground);
+}
+.seal.positive { background: var(--jade); }
+.seal.negative { background: var(--chad); }
+.seal.neutral  { background: var(--ink-dim); }
+.entry .text { margin: 0 0 6px; }
+.entry.special { border-color: var(--chad); }
+.entry.special .text { color: var(--chad); font-weight: 700; }
+.deltas { display: flex; gap: 6px; flex-wrap: wrap; }
+.delta {
+  font-size: 11.5px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--chip-bg); color: var(--ink-dim); font-variant-numeric: tabular-nums;
+}
+.delta.up { color: var(--jade); border-color: var(--jade); }
+.delta.down { color: var(--chad); border-color: var(--chad); }
+.empty-note { color: var(--ink-dim); font-size: 13.5px; }
+
+/* ============ สายสัมพันธ์ ============ */
+.rel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+  padding: 9px 12px; margin-bottom: 9px; box-shadow: var(--shadow);
+}
+.rel-names { font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.bar-label { font-size: 11px; color: var(--ink-dim); width: 44px; flex-shrink: 0; }
+.bar { flex: 1; height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; position: relative; }
+.bar > i { display: block; height: 100%; border-radius: 4px; transition: width .4s ease; }
+.bar.bond > i { background: var(--gold); }
+.bar.bond.neg > i { background: var(--chad); }
+.bar.chem > i { background: var(--chad); }
+.bar-val { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink-dim); width: 30px; text-align: right; flex-shrink: 0; }

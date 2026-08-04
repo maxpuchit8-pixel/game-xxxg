@@ -1,0 +1,14 @@
+# ระบบปฏิบัติการ
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# เครื่องมือ/เอดิเตอร์
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
+
+# Node (เผื่ออนาคตเพิ่ม build step)
+node_modules/

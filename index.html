@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สายใยตระกูล — บันทึกพงศาวดาร</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header>
+    <div class="title-block">
+      <h1 class="display">สายใยตระกูล</h1>
+      <span class="subtitle">บันทึกพงศาวดารตระกูลศรีวัฒนา</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label">วันเวลา</div><div class="value" id="dayLabel">วันที่ ๑</div></div>
+      <div class="stat"><div class="label">คลังทอง</div><div class="value" id="goldLabel">800</div></div>
+      <div class="stat"><div class="label">ชื่อเสียง</div><div class="value rep" id="repLabel">50</div></div>
+      <button id="nextDay">ผ่านวัน ▸</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="rosterPanel">
+      <h2 class="display">ทะเบียนตระกูล</h2>
+      <p class="hint">มอบหมายว่าแต่ละคนจะไปที่ใดในวันนี้ — คนที่อยู่ที่เดียวกันมีโอกาสเกิดเหตุการณ์ร่วมกัน</p>
+      <div id="roster"></div>
+      <div class="actions">
+        <button id="festivalBtn" class="secondary">จัดงานเทศกาล (150 ทอง)</button>
+        <p class="action-note">เรียกทุกคนไปงานเทศกาล และเปิดโอกาสให้คู่ที่เหมาะสมได้ใกล้ชิดกัน</p>
+        <button id="prayBtn" class="secondary">พิธีบูชาบรรพบุรุษ (100 ทอง)</button>
+        <p class="action-note">เสริมชื่อเสียงตระกูล +5 ทันที</p>
+      </div>
+    </section>
+
+    <section id="chronicle">
+      <h2 class="display">จดหมายเหตุ</h2>
+      <div id="winBanner" class="banner gold">ตระกูลศรีวัฒนารุ่งเรืองเป็นที่เลื่องลือทั่วแผ่นดิน — ท่านบรรลุเป้าหมายแล้ว (ทอง ≥ 3,000 และชื่อเสียง ≥ 100) แต่ยังเล่นต่อได้ตามใจ</div>
+      <div id="ruinBanner" class="banner">คลังทองว่างเปล่า ตระกูลกำลังลำบาก — เร่งหาทางค้าขายหรือทำไร่เพื่อฟื้นฐานะ</div>
+      <div id="log"><p class="empty-note">ยังไม่มีบันทึก — มอบหมายสถานที่ให้สมาชิกตระกูล แล้วกด “ผ่านวัน” เพื่อเริ่มพงศาวดารบทแรก</p></div>
+    </section>
+
+    <section id="relPanel">
+      <h2 class="display">สายสัมพันธ์</h2>
+      <p class="hint">สายใย = ความผูกพัน (ติดลบได้) · เสน่หา = เกิดเฉพาะคู่ที่มิใช่สายเลือดเดียวกัน เมื่อถึง ๖๐ จะมีงานมงคล</p>
+      <div id="relList"><p class="empty-note">ความสัมพันธ์จะปรากฏเมื่อผู้คนได้พบปะกัน</p></div>
+    </section>
+  </main>
+
+  <!-- ลำดับโหลดสำคัญ: เอนจิน -> ข้อมูล -> สถานะ -> UI -> ตัวประสาน -->
+  <script src="js/scenario-engine.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
