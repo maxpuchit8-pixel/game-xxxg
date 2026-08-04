@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * viewport.js — ระบบซูมและเลื่อนผังตระกูล (รองรับเมาส์และนิ้วบนมือถือ)
  * =============================================================================
@@ -21,6 +21,11 @@
   const MAX_SCALE = 2.6;
   const TAP_SLOP = 6;   // ขยับไม่เกินกี่พิกเซลจึงยังนับเป็นการแตะเลือก ไม่ใช่ลาก
 
+  /* เพดานการย่อของปุ่ม "พอดีจอ"
+   * ถ้าปล่อยให้ย่อจนพอดีเสมอ พอตระกูลใหญ่ขึ้นผังจะกว้างมากจนตัวหนังสือเล็กอ่านไม่ออก
+   * ยอมให้เห็นไม่ครบแล้วเลื่อนดูเอา ดีกว่าเห็นครบแต่อ่านไม่ออก */
+  const MIN_FIT_SCALE = 0.62;
+
   function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
   function createViewport(hostEl, contentEl, opts = {}) {
@@ -28,6 +33,9 @@
     let dragging = false, moved = false;
     let lastX = 0, lastY = 0;
     let pinchDist = 0;
+    // true เมื่อผู้เล่นซูมหรือเลื่อนเอง — ใช้กันไม่ให้ระบบจัดมุมมองใหม่ทับ
+    // สำคัญบนมือถือ เพราะแถบ URL ที่ซ่อน/โผล่ทำให้เกิด resize ตลอดเวลา
+    let userAdjusted = false;
     const onChange = opts.onChange || function () {};
 
     function apply() {
@@ -45,6 +53,7 @@
       tx = px - k * (px - tx);
       ty = py - k * (py - ty);
       scale = next;
+      userAdjusted = true;
       apply();
     }
 
@@ -54,7 +63,11 @@
       zoomAt(factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
     }
 
-    /** จัดผังให้พอดีกรอบและอยู่กึ่งกลาง */
+    /**
+     * จัดผังให้พอดีกรอบ
+     * ถ้าย่อจนพอดีแล้วเล็กเกินอ่าน จะหยุดที่ MIN_FIT_SCALE แล้วเกาะขอบบน
+     * ให้เห็นต้นสาแหรกก่อน ผู้เล่นค่อยลากดูส่วนที่เหลือ
+     */
     function fit() {
       const hostRect = hostEl.getBoundingClientRect();
       // วัดขนาดจริงของเนื้อหาโดยไม่นับ transform ปัจจุบัน
@@ -63,13 +76,17 @@
       const w = contentEl.scrollWidth;
       const h = contentEl.scrollHeight;
       contentEl.style.transform = prev;
-      if (!w || !h) return;
+      if (!w || !h || !hostRect.width) return;
 
-      const pad = 32;
-      scale = clamp(Math.min((hostRect.width - pad) / w, (hostRect.height - pad) / h),
-        MIN_SCALE, 1);
-      tx = (hostRect.width - w * scale) / 2;
-      ty = Math.max(16, (hostRect.height - h * scale) / 2);
+      const pad = 24;
+      const raw = Math.min((hostRect.width - pad) / w, (hostRect.height - pad) / h);
+      scale = clamp(Math.max(raw, MIN_FIT_SCALE), MIN_SCALE, 1);
+
+      const sw = w * scale, sh = h * scale;
+      // กว้าง/สูงเกินกรอบก็เกาะขอบไว้ ไม่งั้นผังจะหลุดออกไปนอกจอ
+      tx = sw <= hostRect.width ? (hostRect.width - sw) / 2 : 12;
+      ty = sh <= hostRect.height ? (hostRect.height - sh) / 2 : 12;
+      userAdjusted = false;
       apply();
     }
 
@@ -93,6 +110,7 @@
       if (Math.abs(dx) + Math.abs(dy) > TAP_SLOP) moved = true;
       tx += dx; ty += dy;
       lastX = e.clientX; lastY = e.clientY;
+      userAdjusted = true;
       apply();
     });
 
@@ -138,6 +156,7 @@
         const dy = e.touches[0].clientY - lastY;
         if (Math.abs(dx) + Math.abs(dy) > TAP_SLOP) moved = true;
         tx += dx; ty += dy;
+        userAdjusted = true;
         lastX = e.touches[0].clientX;
         lastY = e.touches[0].clientY;
         apply();
@@ -164,6 +183,9 @@
       zoomOut: () => zoomByButton(1 / 1.25),
       reset: fit,
       scale: () => scale,
+      /** true ถ้าผู้เล่นซูมหรือเลื่อนเอง — ระบบจะไม่จัดมุมมองใหม่ทับ */
+      isUserAdjusted: () => userAdjusted,
+      
       /** true ถ้าเพิ่งลากอยู่ ใช้กันไม่ให้การลากถูกตีความเป็นการกดเลือกการ์ด */
       wasDragged: () => moved,
     };

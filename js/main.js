@@ -465,7 +465,9 @@
     }
 
     tree.render();
-    viewport.fit();
+    // รอให้เบราว์เซอร์จัด layout เสร็จก่อนวัดขนาด ไม่งั้นบนมือถือจะวัดได้ค่าศูนย์
+    // เพราะหน้าจอเริ่มเกมเพิ่งถูกซ่อนไปในเฟรมเดียวกัน
+    requestAnimationFrame(() => viewport.fit());
     ui.renderHUD();
     ui.logEvent(
       `พงศาวดารเริ่มต้นขึ้นที่${player.name} ${genderWord(player.gender)}วัย ${player.age} ปี ` +
@@ -504,6 +506,16 @@
   document.getElementById('zoomOut').addEventListener('click', () => viewport.zoomOut());
   document.getElementById('zoomFit').addEventListener('click', () => viewport.fit());
 
+  // ลิ้นชักจดหมายเหตุ (มีผลเฉพาะจอแคบ) — พับแล้วผังได้พื้นที่คืนทันที
+  const logToggle = document.getElementById('logToggle');
+  const chronicle = document.getElementById('chroniclePanel');
+  logToggle.addEventListener('click', () => {
+    const collapsed = chronicle.classList.toggle('collapsed');
+    logToggle.setAttribute('aria-expanded', String(!collapsed));
+    // ขนาดกรอบผังเปลี่ยนไป ต้องจัดมุมมองใหม่ให้พอดี
+    requestAnimationFrame(() => viewport.fit());
+  });
+
   document.getElementById('playBtn').addEventListener('click', () => {
     if (gameOver || decisionPending) return;
     clock.toggle();
@@ -541,7 +553,21 @@
     ui.renderClockControls();
   });
 
-  window.addEventListener('resize', () => { if (viewport) viewport.fit(); });
+  /* จัดมุมมองใหม่เมื่อขนาดจอเปลี่ยน แต่เฉพาะตอนที่ผู้เล่นยังไม่ได้ซูม/เลื่อนเอง
+   * บนมือถือแถบ URL ที่ซ่อนและโผล่ทำให้เกิด resize รัวๆ ถ้าจัดใหม่ทุกครั้ง
+   * มุมมองที่ผู้เล่นเพิ่งตั้งไว้จะถูกรีเซ็ตทิ้งกลางคัน */
+  let resizeTimer = null;
+  function onViewportResize() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (viewport && !viewport.isUserAdjusted()) viewport.fit();
+    }, 180);
+  }
+  window.addEventListener('resize', onViewportResize);
+  window.addEventListener('orientationchange', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (viewport) viewport.fit(); }, 320);
+  });
 
   ui.renderAutoButton(autoMode);
   ui.showStartScreen(startGame);

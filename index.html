@@ -73,8 +73,13 @@
       </div>
     </section>
 
-    <aside id="chroniclePanel">
-      <h2 class="display">จดหมายเหตุ</h2>
+    <!-- collapsed มีผลเฉพาะจอแคบ บนเดสก์ท็อปคลาสนี้ถูกมองข้าม -->
+    <aside id="chroniclePanel" class="collapsed">
+      <!-- บนมือถือหัวข้อนี้กลายเป็นแถบกดพับ/กางลิ้นชัก เพื่อคืนพื้นที่ให้ผัง -->
+      <button id="logToggle" class="log-toggle" aria-expanded="false">
+        <span class="display">จดหมายเหตุ</span>
+        <span class="log-caret" aria-hidden="true">▲</span>
+      </button>
       <div id="log"><p class="empty-note">เหตุการณ์จะถูกบันทึกที่นี่เมื่อเวลาเริ่มเดิน</p></div>
     </aside>
   </main>
