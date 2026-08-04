@@ -79,12 +79,12 @@
       return rec;
     }
 
-    /** คู่ลับทั้งหมดที่ทั้งสองฝ่ายยังมีชีวิตอยู่ (คนตายแล้วไม่ต้องลากเส้น) */
+    /** คู่ลับทั้งหมด — ความสัมพันธ์ลับมีแล้วมีเลย ไม่หายไปแม้ฝ่ายหนึ่งล่วงลับ */
     function activeSecrets() {
       const out = [];
       secrets.forEach((r) => {
         const a = get(r.aId), b = get(r.bId);
-        if (a && b && a.alive && b.alive) out.push(r);
+        if (a && b) out.push(r);
       });
       return out;
     }

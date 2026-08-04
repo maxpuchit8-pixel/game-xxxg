@@ -439,30 +439,31 @@
   }
 
   /* ---------------------------------------------------------------------
-   * อีเวนต์รูปโฉม — อีเวนต์หลักชุดที่สอง ขับด้วยเทมเพลตใน appearance-events.js
-   * เงื่อนไข/ข้อความ/ผลลัพธ์ทั้งหมดอยู่ในไฟล์นั้น ตรงนี้เป็นแค่เครื่องประมวลผล
+   * อีเวนต์รูปโฉม — อีเวนต์หลักชุดที่สอง ขับด้วยเทมเพลตในโฟลเดอร์ js/events/
+   * เงื่อนไข/ข้อความ/ผลลัพธ์ทั้งหมดอยู่ในไฟล์เหล่านั้น ตรงนี้เป็นแค่เครื่องประมวลผล
    * ------------------------------------------------------------------- */
-  const APPEARANCE_EVENTS = window.AppearanceEvents || [];
+  const APPEARANCE_EVENTS = window.EventTemplates || [];
   const appearanceSeen = new Set();   // "evtId:personId" — คนเดิมไม่เจอเรื่องเดิมซ้ำ
 
   /** แทนคำใน title/text/ข้อความผลลัพธ์ของอีเวนต์รูปโฉม */
-  function fillAppearance(text, p, place) {
-    const tokens = {
+  function fillAppearance(text, p, place, extra) {
+    const tokens = Object.assign({
       '{name}': p.name,
       '{place}': place,
       '{measure}': P.measureLabel(p),
       '{tier}': P.charmTier(p.charm, p.gender),
       '{age}': String(p.age),
-    };
+    }, extra || {});
     return Object.keys(tokens).reduce((s, k) => s.split(k).join(tokens[k]), text || '');
   }
 
-  /** ตรวจว่าคนนี้เข้าเงื่อนไข when ของเทมเพลตหรือไม่ */
-  function appearanceEligible(p, evt) {
-    const w = evt.when || {};
+  /** ตรวจว่าคนนี้เข้าเงื่อนไขชุดหนึ่ง (ใช้ได้ทั้ง when และ partnerWhen) */
+  function appearanceEligible(p, w) {
+    w = w || {};
     const c = P.charmParts(p);
     const cup = p.body.measure && p.body.measure.cup != null ? p.body.measure.cup : null;
     if (w.gender && p.gender !== w.gender) return false;
+    if (w.blood != null && p.isBlood !== w.blood) return false;
     if (p.age < (w.minAge != null ? w.minAge : CONFIG.adultAge)) return false;
     if (w.maxAge != null && p.age > w.maxAge) return false;
     if (w.minCharm != null && p.charm < w.minCharm) return false;
@@ -473,6 +474,32 @@
     if (w.hasSpouse === true && !p.spouseId) return false;
     if (w.hasSpouse === false && p.spouseId) return false;
     return true;
+  }
+
+  /** หาเขย/สะใภ้ที่จับคู่กับ p ในอีเวนต์ inlaw ได้ — ต่างเพศ แต่งเข้า ไม่ใช่คู่ตัวเอง */
+  function inlawCandidates(p, evt) {
+    return lineage.living().filter((b) =>
+      b.age >= CONFIG.adultAge &&
+      b.id !== p.id &&
+      !b.isBlood &&
+      b.gender !== p.gender &&
+      b.id !== p.spouseId &&
+      !lineage.hasSecret(p.id, b.id) &&
+      appearanceEligible(b, evt.partnerWhen)
+    );
+  }
+
+  /** สุ่มชื่อคนแปลกหน้า (ต่างเพศกับตัวหลัก) ตามจำนวนใน group — ไม่เข้าผังตระกูล */
+  function makeStrangers(evt, p) {
+    const range = evt.group || [1, 1];
+    const n = range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
+    const gender = p.gender === 'male' ? 'female' : 'male';
+    const names = [];
+    for (let guard = 0; names.length < n && guard < 50; guard++) {
+      const nm = P.pick(data.NAMES[gender]);
+      if (!names.includes(nm)) names.push(nm);
+    }
+    return names;
   }
 
   /** สุ่มสร้างคู่ลับให้คนนี้ตามกติกาเดียวกับ rollSecrets คืนคนที่จับคู่ได้ */
@@ -492,11 +519,13 @@
     return b;
   }
 
-  /** มีบุตรจากอีเวนต์ — กับคู่สมรส หรือกับคู่ลับ (สร้างคู่ลับใหม่ถ้ายังไม่มี) */
-  function eventChild(p, source) {
+  /** มีบุตรจากอีเวนต์ — กับคู่สมรส คู่ลับ หรือคู่กรณีของอีเวนต์ */
+  function eventChild(p, source, eventPartner) {
     let partner = null;
     if (source === 'spouse') {
       partner = p.spouseId ? lineage.get(p.spouseId) : null;
+    } else if (source === 'partner') {
+      partner = eventPartner || null;
     } else {
       const lovers = lineage.secretsOf(p.id).filter((x) => x.gender !== p.gender);
       partner = lovers.length ? P.pick(lovers) : makeSecretFor(p);
@@ -511,7 +540,7 @@
   }
 
   /** ประมวลผลตัวเลือกที่ผู้เล่นกดในอีเวนต์รูปโฉม */
-  function resolveAppearance(evt, value, p, place) {
+  function resolveAppearance(evt, value, p, place, partner, tokens) {
     const opt = evt.options.find((o) => o.value === value) || evt.options[0];
     let eff = opt.effect || {};
     if (eff.chance != null) eff = (Math.random() < eff.chance ? eff.success : eff.fail) || {};
@@ -525,17 +554,22 @@
     if (gold) suffix.push(`เครดิต ${gold > 0 ? '+' : ''}${gold}`);
     if (rep) suffix.push(`ชื่อเสียง ${rep > 0 ? '+' : ''}${rep}`);
     if (eff.text) {
-      ui.logEvent(fillAppearance(eff.text, p, place) +
+      ui.logEvent(fillAppearance(eff.text, p, place, tokens) +
         (suffix.length ? ` (${suffix.join(' · ')})` : ''), 'event');
     }
 
+    if (eff.secretWithPartner && partner) {
+      lineage.addSecret(p.id, partner.id, game.state.month);
+      structureDirty = true;
+      ui.logEvent(`มีข่าวลือว่า${p.name}กับ${partner.name}สนิทสนมกันเกินปกติ`, 'secret');
+    }
     if (eff.secret && !eff.child) {
       const lover = makeSecretFor(p);
       if (lover) {
         ui.logEvent(`มีข่าวลือว่า${p.name}กับ${lover.name}สนิทสนมกันเกินปกติ`, 'secret');
       }
     }
-    if (eff.child) eventChild(p, eff.child);   // child: 'lover' สร้างคู่ลับให้เองถ้ายังไม่มี
+    if (eff.child) eventChild(p, eff.child, partner);   // 'lover' สร้างคู่ลับให้เองถ้ายังไม่มี
   }
 
   function rollAppearanceEvent() {
@@ -546,27 +580,45 @@
     lineage.living().forEach((p) => {
       if (p.age < CONFIG.adultAge) return;
       APPEARANCE_EVENTS.forEach((evt) => {
-        if (!appearanceSeen.has(evt.id + ':' + p.id) && appearanceEligible(p, evt)) {
+        if (appearanceSeen.has(evt.id + ':' + p.id)) return;
+        if (!appearanceEligible(p, evt.when)) return;
+        if (evt.partner === 'inlaw') {
+          const partners = inlawCandidates(p, evt);
+          if (partners.length) matches.push({ p, evt, partner: P.pick(partners) });
+        } else {
           matches.push({ p, evt });
         }
       });
     });
     if (!matches.length) return;
 
-    const { p, evt } = matches[Math.floor(Math.random() * matches.length)];
+    const { p, evt, partner } = matches[Math.floor(Math.random() * matches.length)];
     const place = P.pick(evt.places || ['กลางนคร']);
     appearanceSeen.add(evt.id + ':' + p.id);
 
+    // token เพิ่มเติมของคู่กรณี — คู่เขย/สะใภ้ หรือคนแปลกหน้าที่สุ่มขึ้นใหม่
+    const tokens = {};
+    if (partner) tokens['{partner}'] = partner.name;
+    if (evt.partner === 'stranger') {
+      const strangers = makeStrangers(evt, p);
+      tokens['{stranger}'] = strangers[0] || '';
+      tokens['{strangers}'] = strangers.join(' ');
+      tokens['{count}'] = String(strangers.length);
+    }
+
     ask({
       kind: 'appearance',
-      title: fillAppearance(evt.title, p, place),
-      subject: p.name,
+      title: fillAppearance(evt.title, p, place, tokens),
+      subject: partner ? `${p.name} กับ ${partner.name}` : p.name,
       subjectId: 'app:' + p.id,
       person: p,
       autoValue: evt.options[0].value,
-      text: fillAppearance(evt.text, p, place),
-      options: evt.options,
-    }, (v) => resolveAppearance(evt, v, p, place));
+      text: fillAppearance(evt.text, p, place, tokens),
+      options: evt.options.map((o) => Object.assign({}, o, {
+        label: fillAppearance(o.label, p, place, tokens),
+        note: o.note ? fillAppearance(o.note, p, place, tokens) : o.note,
+      })),
+    }, (v) => resolveAppearance(evt, v, p, place, partner, tokens));
   }
 
   function checkExtinction() {
