@@ -13,7 +13,7 @@
   --ground: #eef1f7;
   --surface: #e2e7f0;
   --surface-2: #d5dce8;
-  --line: #b3bed1;
+  --line: #b3bed1; --connector: #8b9db8;
   --ink: #1e2a3d;
   --ink-dim: #5d6b82;
   --gold: #a86c0b;          /* อำพันแกนพลังงาน */
@@ -36,7 +36,7 @@
     --ground: #0b1220;
     --surface: #131d31;
     --surface-2: #1c2942;
-    --line: #2e3f5e;
+    --line: #2e3f5e; --connector: #4c6690;
     --ink: #d7e3f4;
     --ink-dim: #8295b3;
     --gold: #f2b544;
@@ -54,14 +54,14 @@
   }
 }
 :root[data-theme="dark"] {
-  --ground: #0b1220; --surface: #131d31; --surface-2: #1c2942; --line: #2e3f5e;
+  --ground: #0b1220; --surface: #131d31; --surface-2: #1c2942; --line: #2e3f5e; --connector: #4c6690;
   --ink: #d7e3f4; --ink-dim: #8295b3; --gold: #f2b544; --gold-bright: #ffc963;
   --male: #4da3f5; --male-soft: #132740; --female: #ff5c8a; --female-soft: #35182a;
   --jade: #3fd39b; --chip-bg: #1c2942; --btn-ink: #0b1220;
   --shadow: 0 1px 10px rgba(0, 0, 0, .55);
 }
 :root[data-theme="light"] {
-  --ground: #eef1f7; --surface: #e2e7f0; --surface-2: #d5dce8; --line: #b3bed1;
+  --ground: #eef1f7; --surface: #e2e7f0; --surface-2: #d5dce8; --line: #b3bed1; --connector: #8b9db8;
   --ink: #1e2a3d; --ink-dim: #5d6b82; --gold: #a86c0b; --gold-bright: #c07f10;
   --male: #1f63b8; --male-soft: #dbe7f8; --female: #b62d5c; --female-soft: #f8dde6;
   --jade: #2f7d5e; --chip-bg: #d5dce8; --btn-ink: #f7f9fc;
@@ -211,40 +211,61 @@ main {
 .tree { padding-bottom: 10px; }
 .unit { display: flex; flex-direction: column; align-items: center; position: relative; }
 
-/* ชั้นลูก: เว้นที่ด้านบนไว้วาดเส้นเชื่อม 32px (แกนตั้ง 16 + แกนตั้งลงการ์ด 16) */
-.children { padding-top: 32px; position: relative; }
+/* -----------------------------------------------------------------------------
+ * เรขาคณิตของเส้นเชื่อม — ระยะทั้งหมดต้องต่อกันพอดี ห้ามมีช่องว่าง
+ *
+ *   y = 0     ขอบล่างของการ์ดคู่พ่อแม่ (= ขอบบนของ .children)
+ *   y = 0–20  เส้นตั้งลงจากคู่พ่อแม่          .children::before
+ *   y = 20    เส้นนอนเชื่อมพี่น้องทุกคน        .unit::before / ::after
+ *   y = 20–40 เส้นตั้งจากเส้นนอนลงหาการ์ดลูก   .couple::before
+ *   y = 40    ขอบบนของการ์ดลูก (= padding-top ของ .unit)
+ *
+ * ระยะเว้นทั้งหมดอยู่ที่ padding-top ของ .unit ที่เดียว
+ * ถ้าไปใส่ padding ที่ .children ด้วย ตำแหน่งเส้นนอนจะเลื่อนลงแต่เส้นตั้ง
+ * ไม่เลื่อนตาม กลายเป็นเส้นขาดเป็นท่อนทันที
+ * -------------------------------------------------------------------------- */
+.children { position: relative; }
+
 .children::before {
   content: ''; position: absolute; top: 0; left: 50%; margin-left: -1px;
-  width: 2px; height: 16px; background: var(--line);
+  width: 2px; height: 20px; background: var(--connector);
 }
-.children > .unit { padding: 32px 9px 0; }
-/* เส้นแนวนอนเชื่อมพี่น้อง — แบ่งเป็นครึ่งซ้าย/ครึ่งขวาของแต่ละคน
-   แล้วซ่อนครึ่งนอกสุดของคนแรกกับคนสุดท้าย */
+
+.children > .unit { padding: 40px 9px 0; }
+
+/* เส้นนอนแบ่งเป็นครึ่งซ้าย/ครึ่งขวาของแต่ละคน แล้วซ่อนครึ่งนอกสุด
+   ของคนแรกกับคนสุดท้าย เส้นจึงพาดพอดีจากกึ่งกลางลูกคนแรกถึงคนสุดท้าย */
 .children > .unit::before,
 .children > .unit::after {
-  content: ''; position: absolute; top: 16px; width: 50%; height: 2px; background: var(--line);
+  content: ''; position: absolute; top: 20px; width: 50%; height: 2px;
+  background: var(--connector);
 }
 .children > .unit::before { left: 0; }
 .children > .unit::after { left: 50%; }
 .children > .unit:first-child::before { display: none; }
 .children > .unit:last-child::after { display: none; }
-/* แกนตั้งจากเส้นแนวนอนลงมาหาการ์ด */
+
 .children > .unit > .couple { position: relative; }
 .children > .unit > .couple::before {
-  content: ''; position: absolute; top: -16px; left: 50%; margin-left: -1px;
-  width: 2px; height: 16px; background: var(--line);
+  content: ''; position: absolute; top: -20px; left: 50%; margin-left: -1px;
+  width: 2px; height: 20px; background: var(--connector);
 }
-/* ลูกคนเดียวไม่ต้องมีเส้นแนวนอน */
+
+/* ลูกคนเดียว: ไม่มีพี่น้องให้เชื่อม ตัดเส้นนอนทิ้ง
+   เหลือเส้นตั้งสองท่อนต่อกันเป็นเส้นเดียวยาวจากพ่อแม่ถึงลูกพอดี */
 .children > .unit:only-child::before,
 .children > .unit:only-child::after { display: none; }
 
 /* คู่สมรสวางเคียงกัน คั่นด้วยปมเส้น */
 .couple { display: flex; align-items: center; }
-.knot { width: 22px; height: 2px; background: var(--line); flex-shrink: 0; position: relative; }
+.knot {
+  width: 22px; height: 2px; background: var(--connector);
+  flex-shrink: 0; position: relative;
+}
 .knot::after {
   content: ''; position: absolute; top: -3px; left: 50%; margin-left: -4px;
   width: 8px; height: 8px; background: var(--ground);
-  border: 2px solid var(--line); border-radius: 50%;
+  border: 2px solid var(--connector); border-radius: 50%;
 }
 
 /* =============================================================================
