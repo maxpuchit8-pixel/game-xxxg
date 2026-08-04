@@ -92,8 +92,13 @@
         .join(' ');
 
       // เส้นความสัมพันธ์ลับ — เส้นปะลากตรง อาจเฉียงข้ามรุ่นได้
+      // รวมทั้งคู่ลับ และเส้นพ่อจริง↔บุตรลับ (ลูกอยู่กิ่งแม่ แต่สายเลือดพ่อบอกด้วยเส้นปะ)
       // อยู่ใน svg เดียวกันซึ่ง z-index ต่ำกว่าการ์ด เส้นจึงลอดใต้การ์ดเสมอ
-      const secretPath = TL.secretLinks(lineage.activeSecrets(), L.posOf)
+      const secretPairs = lineage.activeSecrets().concat(
+        lineage.all()
+          .filter((k) => k.secretChild && k.fatherId)
+          .map((k) => ({ aId: k.fatherId, bId: k.id })));
+      const secretPath = TL.secretLinks(secretPairs, L.posOf)
         .map((s) => `M${s.x1} ${s.y1}L${s.x2} ${s.y2}`)
         .join(' ');
 

@@ -22,7 +22,8 @@
 
     /* ความสัมพันธ์ลับ — เฉพาะชายกับหญิง (คนเลือกคู่อยู่ใน rollSecrets ของ main)
      * ไม่จำกัดว่าต้องโสดหรือคนละรุ่น เก็บเป็นคู่ที่เรียงคีย์แล้ว กันบันทึกซ้ำ
-     * สองทิศทาง ผลของมันต่อเกมยังไม่ได้ออกแบบ มีแค่การมีอยู่และการแสดงผล */
+     * สองทิศทาง มีแล้วมีเลยไม่หายไป — ผลต่อเกม (ลอบพบ บุตรลับ ถูกจับได้)
+     * อยู่ใน rollSecretLife ของ main.js */
     const secrets = new Map();  // "idA::idB" -> { aId, bId, sinceMonth }
 
     function add(person) {
@@ -66,6 +67,25 @@
     }
 
     /* ------------------- ความสัมพันธ์ลับ ------------------- */
+
+    /**
+     * ญาติสายตรง (บรรพบุรุษ↔ลูกหลาน) หรือไม่ — ใช้กันคู่ลับที่ผิดธรรมชาติ
+     * จำเป็นเพราะเช็ค isBlood อย่างเดียวไม่พอ: แม่ที่แต่งเข้ามาไม่ใช่ "สายเลือด"
+     * แต่เป็นแม่แท้ๆ ของลูกที่เกิดในตระกูล (เคยหลุดจนแม่จับคู่ลับกับลูกตัวเอง)
+     */
+    function isDirectLine(a, b) {
+      const isAncestor = (top, kid) => {
+        const stack = [kid];
+        while (stack.length) {
+          const cur = stack.pop();
+          if (!cur) continue;
+          if (cur.fatherId === top.id || cur.motherId === top.id) return true;
+          stack.push(get(cur.fatherId), get(cur.motherId));
+        }
+        return false;
+      };
+      return isAncestor(a, b) || isAncestor(b, a);
+    }
 
     function secretKey(a, b) { return [a, b].sort().join('::'); }
 
@@ -138,10 +158,23 @@
         seen.add(p.id);
         const sp = spouseOf(p);
         if (sp) seen.add(sp.id);
+
+        /* บุตรลับยึด "แม่" เป็นหลัก:
+           - ลูกลับที่แม่อยู่กิ่งอื่น (เช่นพ่อสายเลือดแอบมีกับสะใภ้เรือนอื่น)
+             จะไม่แสดงใต้พ่อจริง แต่ไปโผล่ใต้คู่สมรสของแม่แทน
+           - ความเป็นพ่อจริงแสดงด้วยเส้นปะ (พ่อลับ↔ลูก) ที่ฝั่ง UI ลากให้ */
+        const kids = childrenOf(p).filter((k) =>
+          !k.secretChild || k.motherId === p.id || (sp && k.motherId === sp.id));
+        if (sp) {
+          childrenOf(sp).forEach((k) => {
+            if (k.secretChild && k.motherId === sp.id && kids.indexOf(k) < 0) kids.push(k);
+          });
+        }
+
         return {
           person: p,
           spouse: sp,
-          children: childrenOf(p)
+          children: kids
             .sort((x, y) => y.age - x.age)
             .map(unitOf)
             .filter(Boolean),
@@ -174,7 +207,7 @@
       people, add, get, all, living,
       spouseOf, childrenOf, fatherOf, motherOf,
       marry, birth, die,
-      hasSecret, addSecret, activeSecrets, secretsOf,
+      hasSecret, addSecret, activeSecrets, secretsOf, isDirectLine,
       generationOf, maxGeneration, buildTree,
       monthlyIncome, stats,
     };

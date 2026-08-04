@@ -146,6 +146,7 @@
                 <span class="chip ${p.gender}">${p.gender === 'male' ? 'บุรุษ' : 'สตรี'}</span>
                 <span class="chip">${p.alive ? 'อายุ ' + p.age + ' ปี' : 'ถึงแก่กรรม อายุ ' + p.deathAge}</span>
                 <span class="chip">${p.isBlood ? 'สายเลือดตระกูล' : 'แต่งเข้าตระกูล'}</span>
+                ${p.secretChild ? '<span class="chip secret">บุตรลับ</span>' : ''}
                 ${p.isFounder ? '<span class="chip founder">ผู้เริ่มต้น</span>' : ''}
               </div>
               ${p.origin ? `<div class="detail-origin">${p.origin}</div>` : ''}
@@ -187,7 +188,8 @@
           <section class="detail-secret">
             <h4>ความสัมพันธ์ลับ</h4>
             <div class="kin-list">${secrets.map(nameChip).join('')}</div>
-            <p class="detail-note">ผลต่อเกม — ยังคิดไม่ออก</p>
+            <p class="detail-note">แอบคบกันอยู่ — อาจลอบพบกัน อาจเกิดบุตรลับ (บุตรจะอยู่กิ่งของฝ่ายแม่
+              พร้อมเส้นปะบอกพ่อแท้จริง) และเสี่ยงถูกจับได้จนตระกูลเสื่อมเสีย</p>
           </section>` : ''}
         </div>`;
 

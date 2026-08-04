@@ -243,21 +243,31 @@
     });
   }
 
-  /** ให้กำเนิดบุตรและบันทึกจดหมายเหตุ */
-  function completeBirth(father, mother) {
+  /** ให้กำเนิดบุตรและบันทึกจดหมายเหตุ — opts.secret = บุตรลับจากคู่ลับ */
+  function completeBirth(father, mother, opts) {
     const baby = lineage.birth(father, mother);
     if (!baby) return null;
     register(baby);
     baby.bornMonth = game.state.month;
     baby.age = 0;
     linkBlood(baby);
-    game.addReputation(2);
     structureDirty = true;
-    ui.logEvent(
-      `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
-      `บุตรของ${father.name}และ${mother.name}`,
-      'birth'
-    );
+    if (opts && opts.secret) {
+      // บุตรลับไม่เพิ่มชื่อเสียง — ไม่มีใครกล้าป่าวประกาศ
+      baby.secretChild = true;
+      ui.logEvent(
+        `ในความเงียบงัน ${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
+        `— น้อยคนนักที่รู้ว่าบิดาแท้จริงคือ${father.name}`,
+        'secret'
+      );
+    } else {
+      game.addReputation(2);
+      ui.logEvent(
+        `${mother.name}ให้กำเนิด${genderWord(baby.gender)} ได้ชื่อว่า${baby.name} ` +
+        `บุตรของ${father.name}และ${mother.name}`,
+        'birth'
+      );
+    }
     return baby;
   }
 
@@ -333,6 +343,7 @@
       b.id !== a.id &&
       b.gender !== a.gender &&              // ความสัมพันธ์ลับมีเฉพาะชายกับหญิง
       !(a.isBlood && b.isBlood) &&          // เว้นคู่สายเลือดเดียวกัน
+      !lineage.isDirectLine(a, b) &&        // เว้นพ่อแม่ลูกปู่ย่าหลานสายตรง (แม่แต่งเข้าก็คือแม่)
       b.id !== a.spouseId &&                // คู่สมรสตัวเองไม่นับว่าลับ
       !lineage.hasSecret(a.id, b.id)
     );
@@ -345,6 +356,68 @@
       `มีข่าวลือว่า${a.name}กับ${b.name}สนิทสนมกันเกินปกติ แต่ยังไม่มีใครยืนยันได้`,
       'secret'
     );
+  }
+
+  /* ---------------------------------------------------------------------
+   * ชีวิตของคู่ลับ — แอบคบกันจริง: ลอบพบ ตั้งครรภ์บุตรลับ และถูกจับได้
+   * ------------------------------------------------------------------- */
+
+  const SECRET_MEET_TEXTS = [
+    '{a}กับ{b}หายตัวไปจากงานเลี้ยงในเวลาไล่เลี่ยกันอย่างน่าสงสัย',
+    'ยามดึกมีผู้เห็นเงาคล้าย{a}ลอบเข้าพบ{b}แล้วจากไปก่อนฟ้าสาง',
+    'มีจดหมายไร้ชื่อผู้ส่งวางอยู่หน้าเรือนของ{b} ลายมือนั้นคุ้นตายิ่งนัก',
+    '{a}อ้างว่าไปฝึกยุทธ์ แต่ไม่มีใครพบเห็นที่หอฝึกเลยทั้งคืน',
+  ];
+
+  function rollSecretLife() {
+    lineage.activeSecrets().forEach((r) => {
+      const a = lineage.get(r.aId), b = lineage.get(r.bId);
+      if (!a || !b || !a.alive || !b.alive) return;
+      const father = a.gender === 'male' ? a : b;
+      const mother = a.gender === 'female' ? a : b;
+      if (father.gender === mother.gender) return;
+
+      // ฉากลอบพบกัน — สีสันบรรยากาศ ไม่มีผลต่อตัวเลข
+      if (Math.random() < CONFIG.secretMeetChance) {
+        ui.logEvent(
+          P.pick(SECRET_MEET_TEXTS).split('{a}').join(a.name).split('{b}').join(b.name),
+          'secret');
+      }
+
+      // ตั้งครรภ์บุตรลับ — ต้องมีฝ่ายสายเลือด (ลูกถึงมีที่ยืนในผัง) และแม่เจริญพันธุ์
+      if ((father.isBlood || mother.isBlood) &&
+          mother.age >= CONFIG.fertileMin && mother.age <= CONFIG.fertileMax &&
+          mother.childIds.length < CONFIG.maxChildren &&
+          Math.random() < CONFIG.secretBirthChancePerMonth) {
+        const bloodOne = father.isBlood ? father : mother;
+        ask({
+          kind: 'birth',
+          title: 'สายสัมพันธ์ลับผลิดอก',
+          subject: `${mother.name} กับ ${father.name}`,
+          subjectId: 'secretbaby:' + mother.id,
+          person: bloodOne,
+          autoValue: 'no',   // โหมดอัตโนมัติไม่สร้างบุตรลับเอง — เรื่องใหญ่เกินกว่าจะปล่อยสุ่ม
+          text: `${mother.name}กับ${father.name}แอบคบหากันมาเนิ่นนาน ` +
+                `ค่ำคืนล่าสุดร้อนแรงเกินห้ามใจ — จะปล่อยให้สายสัมพันธ์นี้ผลิดอกออกผลหรือไม่`,
+          options: [
+            { label: 'ปล่อยไปตามหัวใจ', value: 'yes', note: 'กำเนิดบุตรลับ', tone: 'accept' },
+            { label: 'ยับยั้งชั่งใจไว้', value: 'no', note: 'ไม่มีอะไรเกิดขึ้น', tone: 'decline' },
+          ],
+        }, (v) => {
+          if (v === 'yes') completeBirth(father, mother, { secret: true });
+        });
+      }
+
+      // ความลับแตก — เสียชื่อเสียงครั้งเดียวต่อคู่ แล้วกลายเป็นเรื่องซุบซิบประจำนคร
+      if (!r.exposed && Math.random() < CONFIG.secretExposeChancePerMonth) {
+        r.exposed = true;
+        game.addReputation(CONFIG.secretExposeRep);
+        ui.logEvent(
+          `ความลับแตก! ผู้คนจับได้ว่า${a.name}กับ${b.name}ลอบคบหากัน ` +
+          `ตระกูลตกเป็นขี้ปากทั้งนคร (ชื่อเสียง ${CONFIG.secretExposeRep})`,
+          'secret');
+      }
+    });
   }
 
   /** เหตุการณ์บรรยากาศจากคลังคำของ ScenarioEngine */
@@ -484,6 +557,7 @@
       !b.isBlood &&
       b.gender !== p.gender &&
       b.id !== p.spouseId &&
+      !lineage.isDirectLine(p, b) &&   // สะใภ้/เขยที่แท้จริงคือแม่/พ่อของตน — ห้ามเด็ดขาด
       !lineage.hasSecret(p.id, b.id) &&
       appearanceEligible(b, evt.partnerWhen)
     );
@@ -509,6 +583,7 @@
       b.id !== p.id &&
       b.gender !== p.gender &&
       !(p.isBlood && b.isBlood) &&
+      !lineage.isDirectLine(p, b) &&
       b.id !== p.spouseId &&
       !lineage.hasSecret(p.id, b.id)
     );
@@ -642,6 +717,7 @@
     rollBirths();
     rollDeaths();
     rollSecrets();
+    rollSecretLife();
     rollAmbient();
     rollChoiceEvent();
     rollAppearanceEvent();
