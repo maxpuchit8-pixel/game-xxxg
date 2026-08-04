@@ -192,9 +192,12 @@
           ${(secrets.length || hiddenKids.length) ? `
           <section class="detail-secret">
             <h4>ความสัมพันธ์ลับ</h4>
-            ${secrets.length ? `<div class="kin-list">${secrets.map(nameChip).join('')}</div>` : ''}
+            ${secrets.length ? `
+            <div class="detail-row kids"><span>แอบคบกับ (${secrets.length})</span>
+              <div class="kin-list">${secrets.map(nameChip).join('')}</div>
+            </div>` : ''}
             ${hiddenKids.length ? `
-            <div class="detail-row kids"><span>บุตรที่ตนไม่รู้ว่ามี (${hiddenKids.length})</span>
+            <div class="detail-row kids"><span>บุตรลับที่ไม่รู้ตัวว่ามี (${hiddenKids.length})</span>
               <div class="kin-list">${hiddenKids.map(nameChip).join('')}</div>
             </div>` : ''}
             <p class="detail-note">แอบคบกันอยู่ — อาจลอบพบกัน อาจเกิดบุตรลับ (โลกจะเชื่อว่าเป็นบุตร
