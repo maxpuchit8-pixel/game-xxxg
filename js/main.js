@@ -204,13 +204,32 @@
     decisionQueue.push({ cfg, onChoose });
   }
 
+  let graceTimer = null;   // ตัวจับเวลาช่วงพักก่อนเดินเวลาต่อ
+
+  /** ยกเลิกช่วงพัก — ใช้เมื่อผู้เล่นสั่งเล่น/หยุดเอง คำสั่งของผู้เล่นต้องชนะเสมอ */
+  function cancelGrace() {
+    clearTimeout(graceTimer);
+    graceTimer = null;
+  }
+
   function pumpDecisions() {
     if (decisionPending || gameOver) return;
 
     if (!decisionQueue.length) {
       if (batchActive) {
         batchActive = false;
-        if (resumeAfterDecision) clock.start();
+        /* หน่วงก่อนปล่อยให้เวลาเดินต่อ — ถ้าเดินต่อทันทีตอนเร่งความเร็ว
+           สถานการณ์ถัดไปจะเด้งขึ้นแทบจะทันที จนผู้เล่นไม่ได้ทำอย่างอื่นเลย
+           ช่วงพักนี้ปลอดภัยเพราะนาฬิกายังหยุดอยู่ จึงไม่มีเรื่องใหม่เกิดระหว่างนั้น */
+        if (resumeAfterDecision) {
+          clearTimeout(graceTimer);
+          graceTimer = setTimeout(() => {
+            graceTimer = null;
+            if (gameOver || decisionPending || decisionQueue.length) return;
+            clock.start();          // กลับไปเดินด้วยความเร็วที่ผู้เล่นตั้งไว้เอง
+            ui.renderClockControls();
+          }, CONFIG.decisionGraceMs);
+        }
         ui.renderClockControls();
       }
       return;
@@ -218,7 +237,10 @@
 
     if (!batchActive) {
       batchActive = true;
-      resumeAfterDecision = clock.isRunning();
+      // ถ้ายังอยู่ในช่วงพัก แปลว่าผู้เล่นตั้งใจให้เวลาเดินต่ออยู่แล้ว
+      resumeAfterDecision = clock.isRunning() || graceTimer != null;
+      clearTimeout(graceTimer);
+      graceTimer = null;
       clock.pause();
       ui.renderClockControls();
     }
@@ -233,7 +255,9 @@
         item.onChoose(value);
         renderTree();
         ui.renderHUD();
-        pumpDecisions();
+        // เว้นจังหวะสั้นๆ ก่อนเปิดเรื่องถัดไปในคิว กันกดพลาดใส่กล่องที่เพิ่งเด้ง
+        if (decisionQueue.length) setTimeout(pumpDecisions, CONFIG.decisionGapMs);
+        else pumpDecisions();
       }
     );
   }
@@ -1134,6 +1158,7 @@
 
   document.getElementById('playBtn').addEventListener('click', () => {
     if (gameOver || decisionPending) return;
+    cancelGrace();   // ผู้เล่นสั่งเอง ให้ชนะช่วงพักหลังตอบสถานการณ์เสมอ
     clock.toggle();
     ui.renderClockControls();
   });
@@ -1165,6 +1190,7 @@
     if (e.code !== 'Space' || gameOver || decisionPending) return;
     if (e.target.closest('button')) return;
     e.preventDefault();
+    cancelGrace();
     clock.toggle();
     ui.renderClockControls();
   });
