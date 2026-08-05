@@ -357,8 +357,9 @@
   function completeBirth(father, mother, opts) {
     const secret = !!(opts && opts.secret);
     const motherOnly = !!(opts && opts.motherOnly);
+    const force = !!(opts && opts.force);
     const pg = lineage.conceive(mother, father,
-      { secret, motherOnly, month: game.state.month });
+      { secret, motherOnly, force, month: game.state.month });
     if (!pg) return null;
     structureDirty = true;
     ui.logEvent(
@@ -393,8 +394,8 @@
       const pg = mother.pregnancy;
       if (!pg) return;
 
-      // แท้ง — พบได้น้อยแต่มีจริง
-      if (Math.random() < CONFIG.miscarriageChance) {
+      // แท้ง — พบได้น้อยแต่มีจริง (ครรภ์จากหอเป็นกฎใหญ่กว่า ไม่แท้ง)
+      if (!pg.force && Math.random() < CONFIG.miscarriageChance) {
         lineage.endPregnancy(mother);
         structureDirty = true;
         ui.logEvent(`${nm(mother)}สูญเสียบุตรในครรภ์ไปก่อนกำหนด ทั้งเรือนเงียบงันไปทั้งเดือน`, 'death');
@@ -795,16 +796,20 @@
     if (eff.conceive && partner) {
       const mother = p.gender === 'female' ? p : partner;
       const father = p.gender === 'male' ? p : partner;
-      if (!mother.pregnancy && mother.age >= CONFIG.fertileMin && mother.age <= CONFIG.fertileMax
+      /* การตั้งครรภ์ในหอเป็นกฎที่ใหญ่ที่สุด — เพดานบุตรสูงสุดและช่วงวัยเจริญพันธุ์
+         ซึ่งเป็นค่าปรับสมดุลของเกม กั้นไม่ได้ เหลือเพียงเงื่อนไขเดียวคือยังไม่ตั้งครรภ์ */
+      if (!mother.pregnancy && mother.age >= CONFIG.adultAge
           && Math.random() < CONFIG.maskConceiveChance) {
         // เกิดในหอที่ไม่มีใครรู้จักใคร — เด็กเป็นของมารดาผู้เดียว ไม่ผูกกับสามี
-        completeBirth(father, mother, { secret: true, motherOnly: true });
+        completeBirth(father, mother, { secret: true, motherOnly: true, force: true });
       }
     }
 
     // ถอดหน้ากาก — จากคนแปลกหน้ากลายเป็นความสัมพันธ์ที่มีชื่อมีหน้า
-    if (eff.reveal && partner && !lineage.hasSecret(p.id, partner.id)) {
+    // ถอดหน้ากากแล้วต้องขึ้นทะเบียนเป็นคู่ลับให้ได้เสมอ ไม่มีเงื่อนไขใดมากั้น
+    if (eff.reveal && partner) {
       lineage.addSecret(p.id, partner.id, game.state.month);
+      relations.shift(p.id, partner.id, 'closeness', 20);
       structureDirty = true;
       P.remember(p, { kind: 'unmasked', month: game.state.month, aboutId: partner.id, weight: 2,
         text: `ถอดหน้ากากแล้วพบว่าคืนนั้นคือ${partner.name}` });

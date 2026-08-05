@@ -82,13 +82,18 @@
      */
     function conceive(mother, father, opts) {
       if (!mother || !father || mother.pregnancy) return null;
-      if (mother.childIds.length >= CONFIG.maxChildren) return null;
+      /* force = กฎที่ไม่มีเพดานใดมากั้นได้ (ใช้กับหอเริงรมย์หน้ากาก)
+         เพดานบุตรสูงสุดเป็นค่าปรับสมดุลของเกม ไม่ใช่กฎของธรรมชาติ
+         สิ่งเดียวที่ยังกั้นคือ "ตั้งครรภ์อยู่แล้ว" ซึ่งซ้อนกันไม่ได้จริงๆ */
+      const force = !!(opts && opts.force);
+      if (!force && mother.childIds.length >= CONFIG.maxChildren) return null;
       const secret = !!(opts && opts.secret);
       const m = mother.body && mother.body.measure;
       mother.pregnancy = {
         fatherId: father.id,
         secret,
         motherOnly: !!(opts && opts.motherOnly),
+        force,
         month: 0,
         startMonth: (opts && opts.month) || 0,
         // เก็บสัดส่วนก่อนตั้งครรภ์ไว้ เพื่อคืนรูปหลังคลอด
@@ -134,7 +139,7 @@
       endPregnancy(mother);
       if (!father) return null;
       return pg.secret
-        ? birthSecret(father, mother, { motherOnly: pg.motherOnly })
+        ? birthSecret(father, mother, { motherOnly: pg.motherOnly, force: pg.force })
         : birth(father, mother);
     }
 
@@ -149,7 +154,7 @@
      */
     function birthSecret(realFather, mother, opts) {
       if (!realFather || !mother) return null;
-      if (mother.childIds.length >= CONFIG.maxChildren) return null;
+      if (!(opts && opts.force) && mother.childIds.length >= CONFIG.maxChildren) return null;
       const baby = P.createChild(realFather, mother);
       baby.secretChild = true;
       baby.trueFatherId = realFather.id;
