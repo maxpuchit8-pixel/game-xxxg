@@ -832,8 +832,14 @@
       // ไม่ลงทะเบียนเข้าผัง จึงไม่กินที่ ไม่แก่ ไม่ถูกจับคู่ และไม่มีเส้นในผัง
       if (p.gender !== 'female') return null;
       partner = P.createOutsider('male', p.age, p.charm);
-      if (tokens && tokens['{stranger}']) partner.name = tokens['{stranger}'];
       partner.strangerFather = true;
+      if (tokens && Number(tokens['{count}']) > 1) {
+        // เจอกันเป็นกลุ่ม — แม้แต่มารดาเองก็ไม่รู้ว่าผู้ใดเป็นบิดา
+        partner.name = 'ผู้หนึ่งใน ' + tokens['{strangers}'];
+        partner.origin = null;
+      } else if (tokens && tokens['{stranger}']) {
+        partner.name = tokens['{stranger}'];
+      }
     } else {
       const lovers = lineage.secretsOf(p.id).filter((x) => x.gender !== p.gender);
       partner = lovers.length ? P.pick(lovers) : makeSecretFor(p);
