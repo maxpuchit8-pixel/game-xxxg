@@ -102,7 +102,7 @@
      * เปิดแผ่นข้อมูลของตัวละคร
      * onGoto(id) ถูกเรียกเมื่อผู้เล่นกดชื่อญาติ เพื่อสลับไปดูคนนั้นแทน
      */
-    function showPersonDetail(p, onGoto) {
+    function showPersonDetail(p, onGoto, onProfile) {
       const host = document.getElementById('detail');
       const father = p.fatherId ? lineage.get(p.fatherId) : null;
       const mother = p.motherId ? lineage.get(p.motherId) : null;
@@ -158,6 +158,8 @@
       host.innerHTML = `
         <div class="detail-panel ${p.gender}" role="dialog" aria-modal="true" aria-label="ข้อมูล${p.name}">
           <button class="detail-close" aria-label="ปิด">✕</button>
+
+          <button class="detail-profile">ดูโปรไฟล์เต็มจอ</button>
 
           <div class="detail-head">
             <div class="detail-portrait ${p.gender}">${P.avatarSVG(p)}</div>
@@ -251,6 +253,8 @@
 
       host.classList.add('show');
       host.querySelector('.detail-close').addEventListener('click', hidePersonDetail);
+      const profBtn = host.querySelector('.detail-profile');
+      if (profBtn && onProfile) profBtn.addEventListener('click', onProfile);
       // กดฉากหลังนอกแผ่นเพื่อปิดได้ — ช่วยจอมือถือที่แผ่นยาวจนปุ่มปิดอยู่ไกล
       // (ผูกครั้งเดียวพอ host เป็น element เดิมตลอดทั้งเกม)
       if (!host.dataset.backdropBound) {

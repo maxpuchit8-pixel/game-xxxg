@@ -273,6 +273,16 @@
       if (newAge === p.age) return;
       p.age = newAge;
       p.income = P.incomeFor(p);
+      // เก็บประวัติรายปีไว้วาดกราฟในหน้าโปรไฟล์ (บันทึกก่อนอัปเดตค่าใหม่ของปีนี้)
+      if (p.age >= CONFIG.adultAge) {
+        if (!p.history) p.history = [];
+        const m = p.body.measure || {};
+        p.history.push({
+          age: p.age, charm: p.charm, power: p.power, desire: Math.round(p.desire || 0),
+          chest: m.chest, waist: m.waist, hips: m.hips, cup: m.cup,
+        });
+        if (p.history.length > 90) p.history.shift();
+      }
       P.refreshBust(p);          // หน้าอกสตรีโตตามวัยจนเต็มศักยภาพพันธุกรรม
       p.power = P.powerFor(p);   // พลังยุทธ์ขึ้นลงตามวัย
       p.charm = P.charmFor(p);   // เสน่ห์พีคช่วงวัยหนุ่มสาวแล้วถดถอย
@@ -1504,11 +1514,23 @@
   /* ---------------------------------------------------------------------
    * แผ่นข้อมูลตัวละคร
    * ------------------------------------------------------------------- */
+  /* หน้าโปรไฟล์เต็มจอ — เปิดจากปุ่มในแผ่นข้อมูล ดูทั้งชีวิตของคนคนนั้นได้ */
+  const profile = window.ProfileUI.create({
+    lineage, relations,
+    fmtMonth: (m) => {
+      const y = data.CONFIG.startYear + Math.floor(m / 12);
+      return `พ.ศ. ${y}`;
+    },
+  });
+
   function openDetail(id) {
     const p = lineage.get(id);
     if (!p) return;
     tree.highlight(id);
-    ui.showPersonDetail(p, openDetail);   // กดชื่อญาติแล้วสลับไปดูคนนั้นต่อได้
+    ui.showPersonDetail(p, openDetail, () => {   // ปุ่ม "ดูโปรไฟล์เต็มจอ"
+      ui.hidePersonDetail();
+      profile.show(p);
+    });
   }
 
   /* ---------------------------------------------------------------------
