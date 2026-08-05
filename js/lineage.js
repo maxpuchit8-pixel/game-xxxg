@@ -47,6 +47,20 @@
       return { a, b };
     }
 
+    /**
+     * แยกทางกัน — ตัดสายคู่สมรสออกจากกัน
+     * บุตรที่เกิดมาแล้วยังอยู่ในทะเบียนเดิมทุกอย่าง เพราะเป็นเรื่องที่เกิดไปแล้ว
+     * ฝ่ายที่แต่งเข้ามาจะยังอยู่ในผัง (เป็นบิดา/มารดาของลูกที่มีอยู่)
+     */
+    function divorce(a, b) {
+      if (!a || !b) return null;
+      if (a.spouseId === b.id) a.spouseId = null;
+      if (b.spouseId === a.id) b.spouseId = null;
+      a.everMarried = true;
+      b.everMarried = true;
+      return { a, b };
+    }
+
     /** ให้กำเนิดบุตร — คืน person ของทารก หรือ null ถ้าเงื่อนไขไม่ผ่าน */
     function birth(father, mother) {
       if (!father || !mother) return null;
@@ -241,7 +255,7 @@
     return {
       people, add, get, all, living,
       spouseOf, childrenOf, fatherOf, motherOf,
-      marry, birth, birthSecret, die,
+      marry, divorce, birth, birthSecret, die,
       hasSecret, addSecret, activeSecrets, secretsOf, isDirectLine,
       generationOf, maxGeneration, buildTree,
       monthlyIncome, stats,

@@ -43,6 +43,7 @@
   engine.addWordBank('complication', ENGINE_CONTENT.complication);
   engine.addWordBank('resolution', ENGINE_CONTENT.resolution);
   const lineage = window.Lineage.create();
+  const relations = window.Relations.create();   // ค่าความสัมพันธ์รายคู่และความระแวง
   const game = window.GameState.create();
   const clock = window.GameClock.create(tick);
   const ui = window.GameUI.create(game, lineage, clock);
@@ -290,6 +291,10 @@
   function completeMarriage(p, partner) {
     register(partner);
     lineage.marry(p, partner);
+    // เริ่มต้นชีวิตคู่ด้วยความไว้ใจและความสนิทระดับหนึ่ง ที่เหลือแล้วแต่จะรักษาไว้
+    relations.shift(p.id, partner.id, 'trust', 65);
+    relations.shift(p.id, partner.id, 'closeness', 55);
+    relations.shift(p.id, partner.id, 'passion', 45);
     game.addReputation(3);
     structureDirty = true;
     ui.logEvent(
@@ -482,6 +487,7 @@
     const b = pickWeighted(candidates, (x) =>
       T.mul(x, 'secret') * (T.has(a, 'heartThief') && x.spouseId ? 3 : 1));
     lineage.addSecret(a.id, b.id, game.state.month);
+    relations.shift(a.id, b.id, 'passion', 35);
     structureDirty = true;
     ui.logEvent(
       `มีข่าวลือว่า${nm(a)}กับ${nm(b)}สนิทสนมกันเกินปกติ แต่ยังไม่มีใครยืนยันได้`,
@@ -507,6 +513,7 @@
   function relieveWith(p, other, kind) {
     P.relieve(p, kind);
     if (other) P.relieve(other, kind);
+    if (other) relations.shift(p.id, other.id, 'passion', kind === 'lover' ? 6 : 3);
     if (Math.random() < 0.25) {
       ui.logEvent(kind === 'lover'
         ? `${nm(p)}กับ${nm(other)}ลอบพบกันอีกครั้ง คืนนั้นยาวนานกว่าครั้งไหน`
@@ -564,6 +571,292 @@
   }
 
   /* ---------------------------------------------------------------------
+   * ดราม่า — ค่าความสัมพันธ์รายคู่ ความระแวง แบล็กเมล์ และรักสามเส้า
+   * ค่าทั้งหมดอยู่ใน relations.js ส่วนบทพูดอยู่ใน events/drama.js
+   * ------------------------------------------------------------------- */
+
+  const DT = window.DramaTexts || {};
+
+  function dramaText(tpl, a, b, c, place) {
+    return (tpl || '')
+      .split('{a}').join(a ? nm(a) : '')
+      .split('{b}').join(b ? nm(b) : '')
+      .split('{c}').join(c ? nm(c) : '')
+      .split('{place}').join(place || 'ในเรือน');
+  }
+
+  const DRAMA_PLACES = ['หลังเรือนใหญ่', 'ตรอกหลังตลาดแสงจันทร์', 'หอชมจันทร์',
+    'ท่าเรือเหาะเขตตะวันตก', 'สวนลอยเขตตะวันออก'];
+
+  /** ผู้ใหญ่ที่ยังมีชีวิตทั้งหมด ใช้บ่อยในระบบดราม่า */
+  function adults() {
+    return lineage.living().filter((p) => p.age >= CONFIG.adultAge);
+  }
+
+  /**
+   * ความระแวงไต่ขึ้นทุกเดือนจากหลักฐานที่คู่ครองทิ้งไว้
+   * ยิ่งคู่ลับลอบพบกันบ่อย ยิ่งมีร่องรอย — คนที่ไว้ใจกันมากจะระแวงช้ากว่า
+   */
+  function feedSuspicion(cheater, lover) {
+    const sp = cheater.spouseId ? lineage.get(cheater.spouseId) : null;
+    if (!sp || !sp.alive) return;
+    if (T.has(sp, 'openHeart')) return;            // เปิดใจไว้แต่แรก ไม่ถือสา
+    const trustGuard = relations.value(sp.id, cheater.id, 'trust') / 100;
+    const gain = CONFIG.suspicionPerClue * (T.has(sp, 'jealous') ? 1.6 : 1) * (1 - trustGuard * 0.5);
+    const level = relations.addSuspicion(sp.id, cheater.id, gain);
+    if (level > 22 && Math.random() < 0.4) {
+      ui.logEvent(dramaText(P.pick(DT.clue), cheater, sp), 'secret');
+    }
+    if (lover) relations.shift(cheater.id, lover.id, 'passion', 3);
+  }
+
+  /** มีคนนอกบังเอิญเห็นคู่ลับเข้า — กลายเป็นคนถือความลับไว้ในมือ */
+  function rollWitness(a, b) {
+    if (Math.random() >= CONFIG.witnessChance) return;
+    const pool = adults().filter((x) =>
+      x.id !== a.id && x.id !== b.id && !relations.knows(x.id, a.id, b.id));
+    if (!pool.length) return;
+    const c = P.pick(pool);
+    const place = P.pick(DRAMA_PLACES);
+    relations.learn(c.id, a.id, b.id, game.state.month);
+    P.remember(c, { kind: 'witnessed', month: game.state.month, aboutId: a.id, weight: 2,
+      text: `เห็น${a.name}กับ${b.name}ด้วยตาตนเองที่${place}` });
+    ui.logEvent(dramaText(P.pick(DT.witness), a, b, c, place), 'secret');
+
+    // ถ้าคนที่เห็นเป็นคู่ครองของฝ่ายใดฝ่ายหนึ่ง เท่ากับจับได้คาตา
+    [a, b].forEach((x) => {
+      if (x.spouseId === c.id) relations.addSuspicion(c.id, x.id, 45);
+    });
+  }
+
+  /** ฉากเผชิญหน้า — เกิดเมื่อความระแวงเต็มขีด แล้วพาไปคนละจุดจบ */
+  function rollConfrontation() {
+    const hot = relations.suspicionsAbove(CONFIG.confrontAt)
+      .map((s) => ({ obs: lineage.get(s.obsId), tgt: lineage.get(s.tgtId), level: s.level }))
+      .filter((s) => s.obs && s.tgt && s.obs.alive && s.tgt.alive && s.obs.spouseId === s.tgt.id);
+    if (!hot.length) return;
+    const { obs, tgt } = P.pick(hot);
+    const lovers = lineage.secretsOf(tgt.id).filter((x) => x.gender !== tgt.gender);
+    const lover = lovers.length ? P.pick(lovers) : null;
+    relations.setSuspicion(obs.id, tgt.id, 0);   // ถามออกไปแล้ว ไม่ว่าจบยังไงก็เริ่มนับใหม่
+
+    ask({
+      kind: 'confront',
+      title: DT.confront.title,
+      subject: `${nm(obs)} ถาม ${nm(tgt)}`,
+      subjectId: 'confront:' + tgt.id,
+      person: tgt,
+      autoValue: 'deny',
+      text: dramaText(DT.confront.text, tgt, obs),
+      options: [
+        { label: 'สารภาพแล้วแตกหัก', value: 'break',
+          note: 'เลิกเป็นคู่ครองกัน · ชื่อเสียง -6 · ทั้งคู่ใจสลาย', tone: 'decline' },
+        { label: 'สารภาพแล้วขอให้ยอมรับ', value: 'accept',
+          note: 'ยังอยู่ด้วยกัน · อีกฝ่ายอาจกลายเป็นผู้เปิดใจ หรือเก็บแค้นไว้' },
+        { label: 'ปฏิเสธทุกข้อกล่าวหา', value: 'deny',
+          note: 'รอดได้ถ้าโชคดี · ถ้าไม่รอดความไว้ใจพังถาวร', tone: 'accept' },
+      ],
+    }, (v) => resolveConfront(v, obs, tgt, lover));
+  }
+
+  function resolveConfront(v, obs, tgt, lover) {
+    const month = game.state.month;
+    if (v === 'break') {
+      lineage.divorce(tgt, obs);
+      game.addReputation(-6);
+      structureDirty = true;
+      ui.logEvent(dramaText(DT.confront.breakUp, tgt, obs), 'secret');
+      [obs, tgt].forEach((x) => rollTrait(x, 'heartbroken', 0.7, 'สูญเสียคู่ครองไปกับความจริงคืนนั้น'));
+      rollTrait(obs, 'vengeful', 0.45, 'ไม่มีวันให้อภัยสิ่งที่เกิดขึ้นคืนนั้น');
+      relations.shift(obs.id, tgt.id, 'grudge', 70);
+      relations.shift(obs.id, tgt.id, 'trust', -100);
+      P.remember(obs, { kind: 'betrayed', month, aboutId: tgt.id, weight: 3,
+        text: `${tgt.name}ทรยศแล้วทั้งคู่ก็แยกจากกัน` });
+      P.remember(tgt, { kind: 'lostSpouse', month, aboutId: obs.id, weight: 3,
+        text: `สารภาพความจริงกับ${obs.name}แล้วเสียเขาไปตลอดกาล` });
+    } else if (v === 'accept') {
+      ui.logEvent(dramaText(DT.confront.accept, tgt, obs), 'secret');
+      relations.shift(obs.id, tgt.id, 'trust', -25);
+      if (gainTrait(obs, 'openHeart', 'เลือกที่จะยอมรับแทนการแตกหัก')) {
+        relations.shift(obs.id, tgt.id, 'closeness', 10);
+      } else {
+        rollTrait(obs, 'jealous', 0.6, 'ยอมรับไว้ปากเดียว แต่ในใจไม่เคยวางลง');
+        relations.shift(obs.id, tgt.id, 'grudge', 35);
+      }
+      P.remember(obs, { kind: 'forgave', month, aboutId: tgt.id, weight: 2,
+        text: `รู้ความจริงเรื่อง${tgt.name}แล้วเลือกที่จะอยู่ต่อ` });
+      P.remember(tgt, { kind: 'confessed', month, aboutId: obs.id, weight: 2,
+        text: `สารภาพกับ${obs.name}แล้วได้รับการยอมรับ` });
+    } else {
+      const believed = Math.random() < (0.55 + relations.value(obs.id, tgt.id, 'trust') / 250);
+      if (believed) {
+        ui.logEvent(dramaText(DT.confront.denyOk, tgt, obs), 'secret');
+        relations.shift(obs.id, tgt.id, 'trust', 8);
+      } else {
+        ui.logEvent(dramaText(DT.confront.denyFail, tgt, obs), 'secret');
+        relations.shift(obs.id, tgt.id, 'trust', -60);
+        relations.shift(obs.id, tgt.id, 'grudge', 45);
+        relations.addSuspicion(obs.id, tgt.id, 60);
+        rollTrait(obs, 'jealous', 0.7, 'จับโกหกได้แล้วไม่เชื่อคำใดอีกเลย');
+        P.remember(obs, { kind: 'liedTo', month, aboutId: tgt.id, weight: 3,
+          text: `จับได้ว่า${tgt.name}โกหกซึ่งหน้า` });
+      }
+    }
+    if (lover) relations.shift(obs.id, lover.id, 'grudge', 40);
+  }
+
+  /** แบล็กเมล์ — คนที่ถือความลับไว้มาทวงค่าปิดปาก */
+  function rollBlackmail() {
+    /* หาเป้าก่อนแล้วค่อยสุ่ม — ถ้าสุ่มทิ้งก่อนโดยยังไม่มีใครถือความลับ
+       โอกาสจะถูกเผาไปเปล่าๆ จนเรื่องนี้แทบไม่เคยเกิดเลย */
+    const options = [];
+    adults().forEach((c) => {
+      relations.secretsKnownBy(c.id).forEach((s) => {
+        const a = lineage.get(s.aId), b = lineage.get(s.bId);
+        [a, b].forEach((victim) => {
+          const other = victim === a ? b : a;
+          if (!victim || !other || !victim.alive || !c.alive) return;
+          if (victim.gender === c.gender) return;             // ผู้ข่มขู่ต้องต่างเพศกับเหยื่อ
+          if (lineage.isDirectLine(victim, c)) return;        // ไม่ใช่ญาติสายตรง
+          if (victim.spouseId === c.id) return;
+          if (P.hasMemory(victim, 'blackmailed', c.id)) return; // คนเดิมทวงซ้ำไม่ได้
+          options.push({ victim, other, c });
+        });
+      });
+    });
+    if (!options.length) return;
+    // ยิ่งมีความลับอยู่ในมือคนหลายคน ยิ่งมีโอกาสที่ใครสักคนจะทวงค่าปิดปาก
+    if (Math.random() >= Math.min(0.5, CONFIG.blackmailChance * options.length)) return;
+    const { victim, other, c } = P.pick(options);
+
+    ask({
+      kind: 'blackmail',
+      title: DT.blackmail.title,
+      subject: `${nm(c)} ข่มขู่ ${nm(victim)}`,
+      subjectId: 'blackmail:' + victim.id,
+      person: victim,
+      autoValue: 'pay',
+      text: dramaText(DT.blackmail.text, victim, other, c),
+      options: [
+        { label: 'จ่ายค่าปิดปาก 400 เครดิต', value: 'pay', note: 'จบเรื่องด้วยเงิน', tone: 'accept' },
+        { label: 'ยอมตามที่เขาเรียกร้อง', value: 'yield',
+          note: 'ความลับถูกเก็บไว้ · แต่ฝังความแค้นไว้ในใจตลอดไป' },
+        { label: 'ไม่ยอมแม้แต่น้อย', value: 'refuse',
+          note: 'ความลับถูกแฉ · ชื่อเสียง -8 แต่ไม่ต้องก้มหัวให้ใคร', tone: 'decline' },
+      ],
+    }, (v) => resolveBlackmail(v, victim, other, c));
+  }
+
+  function resolveBlackmail(v, victim, other, c) {
+    const month = game.state.month;
+    if (v === 'pay') {
+      game.addGold(-400);
+      ui.logEvent(dramaText(DT.blackmail.pay, victim, other, c) + ' (เครดิต -400)', 'secret');
+      relations.shift(victim.id, c.id, 'grudge', 30);
+      P.remember(victim, { kind: 'blackmailed', month, aboutId: c.id, weight: 2,
+        text: `จ่ายค่าปิดปากให้${c.name}` });
+    } else if (v === 'yield') {
+      // ยอมเพราะถูกบีบ ไม่ใช่เพราะเต็มใจ — ฝังเป็นบาดแผลและเชื้อแค้น
+      ui.logEvent(dramaText(DT.blackmail.yield, victim, other, c), 'secret');
+      lineage.addSecret(victim.id, c.id, month);
+      structureDirty = true;
+      relations.shift(victim.id, c.id, 'grudge', 85);
+      relations.shift(victim.id, c.id, 'trust', -100);
+      P.remember(victim, { kind: 'blackmailed', month, aboutId: c.id, weight: 3,
+        text: `ถูก${c.name}บีบให้ยอมแลกกับการปิดปาก` });
+      rollTrait(victim, 'vengeful', 0.6, 'จำวันที่ถูกบีบให้ยอมไว้ไม่มีวันลืม');
+      rollTrait(victim, 'takenHeart', 0.4, 'ไม่เหมือนเดิมอีกเลยนับจากคืนนั้น');
+    } else {
+      game.addReputation(-8);
+      ui.logEvent(dramaText(DT.blackmail.refuse, victim, other, c) + ' (ชื่อเสียง -8)', 'secret');
+      adults().forEach((x) => relations.learn(x.id, victim.id, other.id, month));
+      const sp = victim.spouseId ? lineage.get(victim.spouseId) : null;
+      if (sp) relations.addSuspicion(sp.id, victim.id, 70);
+      rollTrait(victim, 'shameless', 0.6, 'เลือกเสียชื่อดีกว่าก้มหัวให้ผู้ข่มขู่');
+      P.remember(victim, { kind: 'defied', month, aboutId: c.id, weight: 3,
+        text: `ไม่ยอมก้มหัวให้${c.name}แม้ต้องเสียชื่อเสียง` });
+    }
+  }
+
+  /** รักสามเส้า — สองคนปองคนเดียวกันจนต้องมีใครสักคนถอย */
+  function rollTriangle() {
+    const hot = relations.pairsAbove('passion', CONFIG.triangleAt);
+    const byTarget = new Map();
+    hot.forEach((p) => {
+      [[p.aId, p.bId], [p.bId, p.aId]].forEach(([center, other]) => {
+        if (!byTarget.has(center)) byTarget.set(center, []);
+        byTarget.get(center).push(other);
+      });
+    });
+    const picks = [];
+    byTarget.forEach((others, centerId) => {
+      const a = lineage.get(centerId);
+      if (!a || !a.alive || a.age < CONFIG.adultAge) return;
+      const list = others.map(lineage.get).filter((x) => x && x.alive && x.gender !== a.gender);
+      if (list.length >= 2) picks.push({ a, b: list[0], c: list[1] });
+    });
+    if (!picks.length) return;
+    if (Math.random() >= Math.min(0.4, CONFIG.triangleChance * picks.length)) return;
+    const { a, b, c } = P.pick(picks);
+    const place = P.pick(DRAMA_PLACES);
+
+    ask({
+      kind: 'triangle',
+      title: DT.triangle.title,
+      subject: `${nm(b)} และ ${nm(c)} ต่างปอง ${nm(a)}`,
+      subjectId: 'triangle:' + a.id,
+      person: a,
+      autoValue: 'none',
+      text: dramaText(DT.triangle.text, a, b, c, place),
+      options: [
+        { label: `เลือก${b.name}`, value: 'b', note: 'อีกฝ่ายเก็บความแค้นไว้', tone: 'accept' },
+        { label: `เลือก${c.name}`, value: 'c', note: 'อีกฝ่ายเก็บความแค้นไว้', tone: 'accept' },
+        { label: 'ไม่เลือกใครทั้งนั้น', value: 'none', note: 'ทั้งคู่ผิดหวัง', tone: 'decline' },
+        { label: 'ไม่เลือก แต่ไม่ปล่อยใครไป', value: 'both',
+          note: 'ได้ทั้งคู่ไว้ข้างกาย · อาจกลายเป็นผู้มีหัวใจหลายดวง' },
+      ],
+    }, (v) => resolveTriangle(v, a, b, c, place));
+  }
+
+  function resolveTriangle(v, a, b, c, place) {
+    const month = game.state.month;
+    const loserOf = { b: c, c: b };
+    if (v === 'b' || v === 'c') {
+      const win = v === 'b' ? b : c, lose = loserOf[v];
+      ui.logEvent(dramaText(v === 'b' ? DT.triangle.pickB : DT.triangle.pickC, a, b, c, place), 'secret');
+      if (!lineage.hasSecret(a.id, win.id) && !lineage.isDirectLine(a, win)) {
+        lineage.addSecret(a.id, win.id, month);
+        structureDirty = true;
+      }
+      relations.shift(a.id, win.id, 'closeness', 25);
+      relations.shift(lose.id, a.id, 'grudge', 45);
+      relations.shift(lose.id, win.id, 'grudge', 60);
+      P.remember(lose, { kind: 'rejected', month, aboutId: a.id, weight: 2,
+        text: `ถูก${a.name}เลือก${win.name}แทนตน` });
+      rollTrait(lose, 'vengeful', 0.4, 'แพ้ให้คู่แข่งต่อหน้าคนที่ตนปอง');
+    } else if (v === 'both') {
+      ui.logEvent(dramaText(DT.triangle.keepBoth, a, b, c, place), 'secret');
+      [b, c].forEach((x) => {
+        if (!lineage.hasSecret(a.id, x.id) && !lineage.isDirectLine(a, x)) {
+          lineage.addSecret(a.id, x.id, month);
+        }
+        relations.shift(x.id, a.id, 'passion', 20);
+      });
+      relations.shift(b.id, c.id, 'grudge', 55);
+      structureDirty = true;
+      gainTrait(a, 'freeHeart', 'ไม่ยอมปล่อยใครไปสักคน');
+    } else {
+      ui.logEvent(dramaText(DT.triangle.pickNone, a, b, c, place), 'secret');
+      [b, c].forEach((x) => {
+        relations.shift(x.id, a.id, 'grudge', 25);
+        P.remember(x, { kind: 'rejected', month, aboutId: a.id, weight: 1,
+          text: `ถูก${a.name}ปฏิเสธที่${place}` });
+      });
+      game.addReputation(2);
+    }
+  }
+
+  /* ---------------------------------------------------------------------
    * ชีวิตของคู่ลับ — แอบคบกันจริง: ลอบพบ ตั้งครรภ์บุตรลับ และถูกจับได้
    * ------------------------------------------------------------------- */
 
@@ -591,6 +884,12 @@
         // ลอบพบกันจนชิน — ฝ่ายที่ทำซ้ำๆ ค่อยๆ กลายเป็นคนหลายใจ
         [a, b].forEach((x) => tallyTrait(x, 'tryst', 'freeHeart', 4,
           'ลอบพบผู้อื่นจนความลับกลายเป็นเรื่องคุ้นเคย'));
+        // ทุกครั้งที่พบกันย่อมทิ้งร่องรอย — คู่ครองเริ่มระแวง และอาจมีคนเห็น
+        relations.shift(a.id, b.id, 'closeness', 4);
+        relations.shift(a.id, b.id, 'passion', 8);
+        feedSuspicion(a, b);
+        feedSuspicion(b, a);
+        rollWitness(a, b);
       }
 
       // ตั้งครรภ์บุตรลับ — ต้องมีฝ่ายสายเลือด (ลูกถึงมีที่ยืนในผัง) และแม่เจริญพันธุ์
@@ -1038,6 +1337,10 @@
     rollDesire();
     rollSecrets();
     rollSecretLife();
+    relations.decay();      // ความระแวงจางลงถ้าไม่มีหลักฐานใหม่
+    rollConfrontation();
+    rollBlackmail();
+    rollTriangle();
     rollAmbient();
     rollChoiceEvent();
     rollAppearanceEvent();

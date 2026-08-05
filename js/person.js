@@ -464,6 +464,38 @@
     return Math.round(before - p.desire);
   }
 
+  /* ---------------------------------------------------------------------
+   * ความทรงจำ — ตัวละครจำสิ่งที่เกิดกับตนได้ แล้วเรื่องหลังๆ อ้างถึงได้
+   * ใช้เป็นทั้งเงื่อนไขปลดอีเวนต์ (เช่นแก้แค้น) และเนื้อเรื่องในแผ่นข้อมูล
+   * ------------------------------------------------------------------- */
+
+  const MAX_MEMORIES = 60;
+
+  /**
+   * บันทึกความทรงจำหนึ่งเรื่อง
+   * m: { kind, month, aboutId, text, weight }
+   *   kind   ประเภท เช่น 'betrayed' 'blackmailed' 'forgave' 'triumph'
+   *   aboutId คนที่เกี่ยวข้อง (ถ้ามี)
+   *   weight ความหนักของเรื่อง 1–3 ใช้จัดลำดับเวลาแสดงผล
+   */
+  function remember(p, m) {
+    if (!p.memories) p.memories = [];
+    p.memories.push({
+      kind: m.kind, month: m.month || 0, aboutId: m.aboutId || null,
+      text: m.text || '', weight: m.weight || 1,
+    });
+    if (p.memories.length > MAX_MEMORIES) p.memories.shift();
+    return p.memories[p.memories.length - 1];
+  }
+
+  /** ความทรงจำที่ตรงเงื่อนไข — recallOf(p, 'betrayed') หรือระบุตัวคนด้วยก็ได้ */
+  function recallOf(p, kind, aboutId) {
+    return ((p && p.memories) || []).filter((m) =>
+      (!kind || m.kind === kind) && (!aboutId || m.aboutId === aboutId));
+  }
+
+  function hasMemory(p, kind, aboutId) { return recallOf(p, kind, aboutId).length > 0; }
+
   /** ระดับความต้องการเป็นคำ ใช้แสดงบนแผ่นข้อมูล */
   function desireTier(v) {
     if (v >= DESIRE.peakAt) return 'อดกลั้นไม่อยู่แล้ว';
@@ -512,6 +544,7 @@
       deathAge: null,
       traits: opts.traits || [],   // คุณลักษณะติดตัว ปกติเริ่มที่ 0 ตัว
       traitTally: {},              // ตัวนับพฤติกรรมสะสมก่อนติดเป็นนิสัย
+      memories: [],                // สิ่งที่เกิดกับตนและยังจำได้
       // ไฟประจำตัวคงที่ทั้งชีวิต ส่วนหลอดความต้องการไต่ขึ้นเองทุกเดือน
       libido: opts.libido != null ? opts.libido : rollLibido(),
       desire: opts.desire != null ? opts.desire
@@ -632,6 +665,7 @@
     rollPowerBase, inheritPowerBase, powerFor,
     rollFace, inheritFace, charmFor, charmTier, charmParts, shapeScore,
     rollLibido, inheritLibido, desireRate, desireAgeFactor, relieve, desireTier,
+    remember, recallOf, hasMemory,
     incomeFor, avatarSVG, randNormal, pick,
   };
 })(typeof self !== 'undefined' ? self : this);
