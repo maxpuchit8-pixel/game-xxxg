@@ -168,6 +168,7 @@
                 <span class="chip">${p.alive ? 'อายุ ' + p.age + ' ปี' : 'ถึงแก่กรรม อายุ ' + p.deathAge}</span>
                 <span class="chip">${p.isBlood ? 'สายเลือดตระกูล' : 'แต่งเข้าตระกูล'}</span>
                 ${p.secretChild ? '<span class="chip secret">บุตรลับ</span>' : ''}
+                ${p.pregnancy ? `<span class="chip pregnant">ตั้งครรภ์ ${p.pregnancy.month}/${CONFIG.pregnancyTerm} เดือน</span>` : ''}
                 ${p.isFounder ? '<span class="chip founder">ผู้เริ่มต้น</span>' : ''}
               </div>
               ${p.origin ? `<div class="detail-origin">${p.origin}</div>` : ''}

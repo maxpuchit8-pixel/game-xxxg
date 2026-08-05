@@ -43,7 +43,10 @@
     function bodyText(p) {
       if (p.age < CONFIG.adultAge) return 'ยังอยู่ในวัยเยาว์';
       const measure = P.measureLabel(p);
-      return `${p.body.height} ซม. · ${p.body.weight} กก. · ${P.buildLabel(p.body)}` +
+      const belly = p.pregnancy
+        ? `<span class="card-pregnant">ตั้งครรภ์ ${p.pregnancy.month}/${CONFIG.pregnancyTerm} เดือน</span><br>`
+        : '';
+      return belly + `${p.body.height} ซม. · ${p.body.weight} กก. · ${P.buildLabel(p.body)}` +
         (measure ? `<br>สัดส่วน ${measure}` : '') +
         `<br><span class="card-charm">เสน่ห์ ${p.charm} · ${P.charmTier(p.charm, p.gender)}</span>`;
     }

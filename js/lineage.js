@@ -73,6 +73,68 @@
       return baby;
     }
 
+    /* ------------------- การตั้งครรภ์ ------------------- */
+
+    /**
+     * เริ่มตั้งครรภ์ — ยังไม่เกิดทารกจนกว่าจะครบกำหนด
+     * เก็บทั้งบิดาทางทะเบียนและบิดาแท้จริงไว้ตั้งแต่วันแรก เพราะระหว่างเก้าเดือนนี้
+     * สามีอาจเริ่มระแวง หรือความจริงอาจแตกก่อนที่เด็กจะลืมตาดูโลกเสียอีก
+     */
+    function conceive(mother, father, opts) {
+      if (!mother || !father || mother.pregnancy) return null;
+      if (mother.childIds.length >= CONFIG.maxChildren) return null;
+      const secret = !!(opts && opts.secret);
+      const m = mother.body && mother.body.measure;
+      mother.pregnancy = {
+        fatherId: father.id,
+        secret,
+        month: 0,
+        startMonth: (opts && opts.month) || 0,
+        // เก็บสัดส่วนก่อนตั้งครรภ์ไว้ เพื่อคืนรูปหลังคลอด
+        before: m ? { chest: m.chest, waist: m.waist, hips: m.hips } : null,
+        // คนแปลกหน้าไม่ได้อยู่ในทะเบียน จึงต้องอุ้มตัว person ไว้เองจนถึงวันคลอด
+        fatherRef: get(father.id) ? null : father,
+      };
+      return mother.pregnancy;
+    }
+
+    /** ครรภ์เดินไปหนึ่งเดือน คืน true เมื่อครบกำหนดคลอด */
+    function advancePregnancy(mother) {
+      const pg = mother.pregnancy;
+      if (!pg) return false;
+      pg.month += 1;
+      const m = mother.body && mother.body.measure;
+      if (m && pg.before) {
+        // ครรภ์โตขึ้นทุกเดือน เอวขยายมากสุด ตามด้วยอกและสะโพก
+        const t = pg.month / CONFIG.pregnancyTerm;
+        m.waist = Math.round(pg.before.waist + 26 * t);
+        m.chest = Math.round(pg.before.chest + 5 * t);
+        m.hips = Math.round(pg.before.hips + 4 * t);
+      }
+      return pg.month >= CONFIG.pregnancyTerm;
+    }
+
+    /** คืนรูปสัดส่วนหลังจบการตั้งครรภ์ (ไม่ว่าจะคลอดหรือแท้ง) */
+    function endPregnancy(mother) {
+      const pg = mother.pregnancy;
+      if (!pg) return;
+      const m = mother.body && mother.body.measure;
+      if (m && pg.before) {
+        m.chest = pg.before.chest; m.waist = pg.before.waist; m.hips = pg.before.hips;
+      }
+      mother.pregnancy = null;
+    }
+
+    /** คลอดจริง — เรียกเมื่อครบกำหนด คืนทารก (หรือ null ถ้าไม่ผ่านเงื่อนไข) */
+    function deliver(mother) {
+      const pg = mother.pregnancy;
+      if (!pg) return null;
+      const father = get(pg.fatherId) || pg.fatherRef;
+      endPregnancy(mother);
+      if (!father) return null;
+      return pg.secret ? birthSecret(father, mother) : birth(father, mother);
+    }
+
     /**
      * กำเนิดบุตรลับ — แยก "ความจริง" ออกจาก "สิ่งที่โลกรู้"
      *   - พันธุกรรมมาจากพ่อแท้จริง (realFather) แต่สแตมป์ไว้ใน trueFatherId เท่านั้น
@@ -256,6 +318,7 @@
       people, add, get, all, living,
       spouseOf, childrenOf, fatherOf, motherOf,
       marry, divorce, birth, birthSecret, die,
+      conceive, advancePregnancy, endPregnancy, deliver,
       hasSecret, addSecret, activeSecrets, secretsOf, isDirectLine,
       generationOf, maxGeneration, buildTree,
       monthlyIncome, stats,

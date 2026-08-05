@@ -339,11 +339,65 @@
     });
   }
 
-  /** ให้กำเนิดบุตรและบันทึกจดหมายเหตุ — opts.secret = บุตรลับจากคู่ลับ */
+  /**
+   * ตั้งครรภ์ — จากนี้ไปการมีบุตรใช้เวลาเก้าเดือน ไม่ใช่เกิดทันที
+   * ระหว่างนั้นเรือนร่างเปลี่ยน สามีอาจระแวง และความจริงอาจแตกก่อนคลอด
+   */
   function completeBirth(father, mother, opts) {
     const secret = !!(opts && opts.secret);
-    const baby = secret ? lineage.birthSecret(father, mother) : lineage.birth(father, mother);
-    if (!baby) return null;
+    const pg = lineage.conceive(mother, father, { secret, month: game.state.month });
+    if (!pg) return null;
+    structureDirty = true;
+    ui.logEvent(
+      secret
+        ? `${nm(mother)}เริ่มตั้งครรภ์ — มีเพียงนางที่รู้ว่าใครคือบิดา`
+        : `${nm(mother)}ตั้งครรภ์กับ${nm(father)}แล้ว ทั้งเรือนรอคอยวันนั้นอยู่`,
+      secret ? 'secret' : 'birth');
+    return pg;
+  }
+
+  /** เดินครรภ์ของทุกคนไปหนึ่งเดือน แล้วคลอดเมื่อครบกำหนด */
+  function rollPregnancies() {
+    lineage.living().forEach((mother) => {
+      const pg = mother.pregnancy;
+      if (!pg) return;
+
+      // แท้ง — พบได้น้อยแต่มีจริง
+      if (Math.random() < CONFIG.miscarriageChance) {
+        lineage.endPregnancy(mother);
+        structureDirty = true;
+        ui.logEvent(`${nm(mother)}สูญเสียบุตรในครรภ์ไปก่อนกำหนด ทั้งเรือนเงียบงันไปทั้งเดือน`, 'death');
+        P.remember(mother, { kind: 'miscarried', month: game.state.month, weight: 3,
+          text: 'สูญเสียบุตรในครรภ์' });
+        rollTrait(mother, 'heartbroken', 0.5, 'สูญเสียบุตรในครรภ์ไปก่อนได้เห็นหน้า');
+        return;
+      }
+
+      // ครรภ์ลับกับสามีที่ยังอยู่ในเรือน — ยิ่งท้องโตยิ่งน่าสงสัย
+      const husband = mother.spouseId ? lineage.get(mother.spouseId) : null;
+      if (pg.secret && husband && husband.alive && !T.has(husband, 'openHeart')) {
+        relations.addSuspicion(husband.id, mother.id, CONFIG.secretPregnancySuspicion);
+      }
+
+      const due = lineage.advancePregnancy(mother);
+      if (pg.month === 4 && Math.random() < 0.5) {
+        ui.logEvent(`ครรภ์ของ${nm(mother)}เริ่มเป็นที่สังเกตของคนในเรือนแล้ว`, 'event');
+      }
+      if (!due) return;
+
+      const twins = Math.random() < CONFIG.twinChance;
+      const born = deliverBaby(mother);
+      if (born && twins) deliverTwin(mother, born);
+    });
+  }
+
+  /** คลอดจริงเมื่อครบกำหนด แล้วบันทึกจดหมายเหตุตามกติกาบุตรลับเดิม */
+  function deliverBaby(mother) {
+    const pg = mother.pregnancy;
+    const secret = pg ? pg.secret : false;
+    const father = pg ? (lineage.get(pg.fatherId) || pg.fatherRef) : null;
+    const baby = lineage.deliver(mother);
+    if (!baby || !father) return null;
     register(baby);
     baby.bornMonth = game.state.month;
     baby.age = 0;
@@ -386,6 +440,25 @@
     return baby;
   }
 
+  /** แฝด — คลอดตามมาอีกคนทันทีโดยใช้บิดาคนเดียวกัน */
+  function deliverTwin(mother, firstBorn) {
+    const father = firstBorn.trueFatherId
+      ? (lineage.get(firstBorn.trueFatherId) || lineage.get(firstBorn.fatherId))
+      : lineage.get(firstBorn.fatherId);
+    if (!father || mother.childIds.length >= CONFIG.maxChildren) return null;
+    const twin = firstBorn.secretChild
+      ? lineage.birthSecret(father, mother)
+      : lineage.birth(father, mother);
+    if (!twin) return null;
+    register(twin);
+    twin.bornMonth = game.state.month;
+    twin.age = 0;
+    linkBlood(twin);
+    structureDirty = true;
+    ui.logEvent(`แล้ว${nm(mother)}ก็ให้กำเนิดอีกคน — ${nm(twin)}เป็นแฝดของ${firstBorn.name}`, 'birth');
+    return twin;
+  }
+
   function rollBirths() {
     lineage.living().forEach((p) => {
       if (!p.isBlood || !p.spouseId) return;
@@ -394,6 +467,7 @@
 
       const father = p.gender === 'male' ? p : spouse;
       const mother = p.gender === 'female' ? p : spouse;
+      if (mother.pregnancy) return;   // ตั้งครรภ์อยู่แล้ว
       if (mother.age < CONFIG.fertileMin || mother.age > CONFIG.fertileMax) return;
       if (mother.childIds.length >= CONFIG.maxChildren) return;
       if (Math.random() >= CONFIG.birthChancePerMonth * T.mul(mother, 'fertility')) return;
@@ -525,7 +599,8 @@
   function rollDesire() {
     lineage.living().forEach((p) => {
       if (p.age < CONFIG.adultAge) return;
-      p.desire = Math.min(120, (p.desire || 0) + P.desireRate(p));
+      const swing = p.pregnancy ? CONFIG.pregnancyDesireSwing : 1;
+      p.desire = Math.min(120, (p.desire || 0) + P.desireRate(p) * swing);
       if (p.desire < DESIRE.peakAt) return;
 
       // 1) คู่ครอง — ตอบสนองไหมขึ้นกับหลอดของอีกฝ่ายเองด้วย
@@ -894,6 +969,7 @@
 
       // ตั้งครรภ์บุตรลับ — ต้องมีฝ่ายสายเลือด (ลูกถึงมีที่ยืนในผัง) และแม่เจริญพันธุ์
       if ((father.isBlood || mother.isBlood) &&
+          !mother.pregnancy &&
           mother.age >= CONFIG.fertileMin && mother.age <= CONFIG.fertileMax &&
           mother.childIds.length < CONFIG.maxChildren &&
           Math.random() < CONFIG.secretBirthChancePerMonth) {
@@ -1172,6 +1248,7 @@
     const mother = p.gender === 'female' ? p : partner;
     if (father.gender !== 'male' || mother.gender !== 'female') return null;
     // เคารพกติกาการมีบุตรปกติ — แม่ต้องอยู่ในวัยเจริญพันธุ์ (เพดานบุตรเช็คใน birth)
+    if (mother.pregnancy) return null;
     if (mother.age < CONFIG.fertileMin || mother.age > CONFIG.fertileMax) return null;
     // บุตรจากชู้รัก/คู่กรณีเป็นบุตรลับเสมอ — โลกรู้แค่ตามทะเบียน
     return completeBirth(father, mother, { secret: source !== 'spouse' });
@@ -1331,6 +1408,7 @@
 
     game.advanceMonth(lineage.monthlyIncome());
     ageEveryone();
+    rollPregnancies();
     rollMarriages();
     rollBirths();
     rollDeaths();
