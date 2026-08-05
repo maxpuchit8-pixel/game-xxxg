@@ -681,15 +681,8 @@
         if (Math.random() < 0.45) {
           ui.logEvent(P.pick(MASK_TEXTS).split('{a}').join(nm(p)), 'secret');
         }
-        // นานๆ ครั้งคู่ของคืนนั้นตามมาเจอกันข้างนอก แล้วกลายเป็นความสัมพันธ์จริง
-        if (Math.random() < CONFIG.maskLingerChance) {
-          const lover = makeSecretFor(p);
-          if (lover) {
-            ui.logEvent(
-              `คู่ของ${nm(p)}จากคืนหน้ากากตามมาพบกันอีกข้างนอก — คราวนี้ทั้งคู่รู้ชื่อกันแล้ว`,
-              'secret');
-          }
-        }
+        /* ไม่จับคู่กับใครที่นี่โดยอัตโนมัติ — การจับคู่ในหอเกิดได้เฉพาะกับคนที่
+           ผู้เล่นลากเข้ามาเอง ผ่านบทต่อเนื่องใน rollMaskChain เท่านั้น */
         return;
       }
 
@@ -715,6 +708,118 @@
         }
       }
     });
+  }
+
+
+  /* ---------------------------------------------------------------------
+   * หอเริงรมย์หน้ากาก — บทต่อเนื่องที่เดินไปเรื่อยๆ จนจบฉากสุดท้าย
+   * คู่ในเรื่องคือคนที่ผู้เล่นลากเข้ามาอยู่ในหอเดียวกันเท่านั้น
+   * ------------------------------------------------------------------- */
+
+  const MASK_CHAIN = window.MaskChain || [];
+  const MASK_SPOTS = window.MaskPlaces || ['หอเริงรมย์หน้ากาก'];
+
+  /** คนในหอที่จับคู่กับ p ได้ตามกติกาเดิมของเกม */
+  function maskPartnersFor(p, hall) {
+    return hall.filter((x) =>
+      x.id !== p.id &&
+      x.gender !== p.gender &&
+      x.age >= CONFIG.adultAge &&
+      !(p.isBlood && x.isBlood) &&
+      !lineage.isDirectLine(p, x) &&
+      !(x.mask && x.mask.partnerId && x.mask.partnerId !== p.id));
+  }
+
+  function rollMaskChain() {
+    const hall = lineage.living().filter((x) =>
+      x.age >= CONFIG.adultAge && Places.placeOf(x).anonymous);
+
+    // ออกจากหอแล้วบทจบทันที กลับเข้ามาใหม่ก็เริ่มบทใหม่
+    lineage.living().forEach((x) => {
+      if (x.mask && !Places.placeOf(x).anonymous) x.mask = null;
+    });
+    if (!hall.length) return;
+
+    hall.forEach((p) => {
+      if (!p.mask) p.mask = { stage: 0, partnerId: null, follower: false };
+      if (p.mask.follower) return;             // อีกฝ่ายเป็นคนเดินเรื่องอยู่แล้ว
+      if (p.mask.stage >= MASK_CHAIN.length) { p.mask = null; return; }
+      if (Math.random() >= CONFIG.maskSceneChance) return;
+
+      let partner = p.mask.partnerId ? lineage.get(p.mask.partnerId) : null;
+      if (!partner || !partner.alive || !Places.placeOf(partner).anonymous) {
+        const pool = maskPartnersFor(p, hall);
+        if (!pool.length) return;              // ยังไม่มีใครให้จับคู่ — รอไปก่อน
+        partner = pickWeighted(pool, (x) => T.mul(x, 'secret'));
+        p.mask.partnerId = partner.id;
+        partner.mask = { stage: p.mask.stage, partnerId: p.id, follower: true };
+      }
+
+      const scene = MASK_CHAIN[p.mask.stage];
+      const place = P.pick(MASK_SPOTS);
+      const fill = (t) => (t || '').split('{a}').join(nm(p))
+        .split('{b}').join(nm(partner)).split('{place}').join(place);
+
+      ask({
+        kind: 'appearance',
+        title: fill(scene.title),
+        subject: `${p.name} · ฉากที่ ${p.mask.stage + 1}/${MASK_CHAIN.length}`,
+        subjectId: 'mask:' + p.id,
+        person: p,
+        autoValue: scene.options[0].value,
+        text: fill(scene.text),
+        options: scene.options.map((o) => Object.assign({}, o, { label: fill(o.label) })),
+      }, (v) => resolveMaskScene(scene, v, p, partner, place, fill));
+    });
+  }
+
+  function resolveMaskScene(scene, value, p, partner, place, fill) {
+    const opt = scene.options.find((o) => o.value === value) || scene.options[0];
+    const eff = opt.effect || {};
+
+    if (eff.desire) p.desire = Math.max(0, Math.min(120, (p.desire || 0) + eff.desire));
+    if (eff.desire && partner) {
+      partner.desire = Math.max(0, Math.min(120, (partner.desire || 0) + eff.desire * 0.8));
+    }
+    if (eff.passion && partner) relations.shift(p.id, partner.id, 'passion', eff.passion);
+    if (eff.text) ui.logEvent(fill(eff.text), 'secret');
+
+    if (eff.trait) [].concat(eff.trait).forEach((id) => gainTrait(p, id, eff.traitStory));
+    if (eff.tally) {
+      [].concat(eff.tally).forEach((t) => tallyTrait(p, t.key || t.trait, t.trait, t.need, t.story));
+    }
+
+    // ตั้งครรภ์ — ฝ่ายหญิงในคู่นี้ ตามกติกาบุตรลับปกติ
+    if (eff.conceive && partner) {
+      const mother = p.gender === 'female' ? p : partner;
+      const father = p.gender === 'male' ? p : partner;
+      if (!mother.pregnancy && mother.age >= CONFIG.fertileMin && mother.age <= CONFIG.fertileMax
+          && Math.random() < CONFIG.maskConceiveChance) {
+        completeBirth(father, mother, { secret: true });
+      }
+    }
+
+    // ถอดหน้ากาก — จากคนแปลกหน้ากลายเป็นความสัมพันธ์ที่มีชื่อมีหน้า
+    if (eff.reveal && partner && !lineage.hasSecret(p.id, partner.id)) {
+      lineage.addSecret(p.id, partner.id, game.state.month);
+      structureDirty = true;
+      P.remember(p, { kind: 'unmasked', month: game.state.month, aboutId: partner.id, weight: 2,
+        text: `ถอดหน้ากากแล้วพบว่าคืนนั้นคือ${partner.name}` });
+      P.remember(partner, { kind: 'unmasked', month: game.state.month, aboutId: p.id, weight: 2,
+        text: `ถูก${p.name}ถอดหน้ากากดูในคืนที่หอเริงรมย์` });
+    }
+
+    if (eff.leave) {
+      if (partner) partner.mask = null;
+      p.mask = null;
+      return;
+    }
+    p.mask.stage += 1;
+    if (partner && partner.mask) partner.mask.stage = p.mask.stage;
+    if (p.mask.stage >= MASK_CHAIN.length) {
+      if (partner) partner.mask = null;
+      p.mask = null;
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -1506,6 +1611,7 @@
     rollBirths();
     rollDeaths();
     rollDesire();
+    rollMaskChain();
     rollSecrets();
     rollSecretLife();
     relations.decay();      // ความระแวงจางลงถ้าไม่มีหลักฐานใหม่
