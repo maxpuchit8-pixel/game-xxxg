@@ -55,7 +55,14 @@ for (const f of ['data.js', 'scenario-engine.js', 'person.js', 'lineage.js', 'st
 `root.GameData` **ตอนโหลดไฟล์** ไม่ใช่ตอนเรียกใช้ ดังนั้น `data.js` ต้องมาก่อนเสมอ
 สลับลำดับ `<script>` ใน `index.html` แล้วเกมจะพังทันทีด้วย TypeError ที่อ่านไม่รู้เรื่อง
 
-ลำดับปัจจุบัน: `data → js/trait/*.js → js/events/*.js → scenario-engine → person → lineage → clock → state → viewport → ui → tree-layout → tree-ui → main`
+ลำดับปัจจุบัน: `data → js/trait/*.js → js/events/*.js → scenario-engine → person →
+lineage → places → relations → clock → state → viewport → ui → tree-layout → tree-ui →
+profile-ui → map-ui → main`
+
+ เก็บสถานะรายคู่ (ความสนิท/ปรารถนา/ไว้ใจ/แค้น) ความระแวงแบบมีทิศทาง
+และทะเบียนว่าใครรู้ความลับของคู่ไหน — เป็นฐานของฉากเผชิญหน้า แบล็กเมล์ และสามเส้า
+ เก็บสถานที่และตำแหน่งของทุกคน () มีผลต่อการเลือกอีเวนต์
+การเกิดความสัมพันธ์ลับ และโอกาสถูกเห็น — ผู้เล่นย้ายคนเองได้ที่หน้าแผนที่
 
 โฟลเดอร์ `js/trait/` คือระบบคุณลักษณะติดตัว (`engine.js` ต้องมาก่อน `traits-*.js`)
 ทุกไฟล์ `traits-*.js` ลงทะเบียนเข้า `root.TraitDefs` เดียวกัน ตัวเครื่องอยู่ที่ `root.Traits`

@@ -27,6 +27,7 @@
   const { CONFIG, CHOICE_EVENTS, ENGINE_CONTENT } = data;
   const P = window.Person;
   const T = window.Traits;   // ระบบคุณลักษณะติดตัว (js/trait/)
+  const Places = window.Places;   // สถานที่ในนครและตำแหน่งของแต่ละคน
 
   const engine = new window.ScenarioEngine();
 
@@ -367,6 +368,22 @@
   }
 
   /** เดินครรภ์ของทุกคนไปหนึ่งเดือน แล้วคลอดเมื่อครบกำหนด */
+  /** ผลของสถานที่ที่แต่ละคนอยู่ — คิดเดือนละครั้ง */
+  function rollPlaceEffects() {
+    let rep = 0;
+    lineage.living().forEach((p) => {
+      if (p.age < CONFIG.adultAge) return;
+      const pl = Places.placeOf(p);
+      if (pl.income) game.addGold(pl.income);
+      if (pl.power) {
+        p.powerBase = Math.min(data.POWER.base.max, p.powerBase + pl.power);
+        p.power = P.powerFor(p);
+      }
+      if (pl.rep) rep += pl.rep;
+    });
+    if (rep >= 1) game.addReputation(Math.floor(rep));
+  }
+
   function rollPregnancies() {
     lineage.living().forEach((mother) => {
       const pg = mother.pregnancy;
@@ -556,7 +573,8 @@
     if (adults.length < 2) return;
 
     // trait สายหลายใจทำให้ถูกเลือกเป็นคนเริ่มเรื่องบ่อยกว่า สายรักเดียวใจเดียวแทบไม่เลย
-    const a = pickWeighted(adults, (x) => T.mul(x, 'secret'));
+    // และคนที่อยู่ในที่ลับตาคนย่อมมีโอกาสมากกว่าคนที่อยู่กลางเรือน
+    const a = pickWeighted(adults, (x) => T.mul(x, 'secret') * Places.placeOf(x).secret);
     const candidates = adults.filter((b) =>
       b.id !== a.id &&
       b.gender !== a.gender &&              // ความสัมพันธ์ลับมีเฉพาะชายกับหญิง
@@ -567,9 +585,13 @@
     );
     if (!candidates.length) return;
 
-    // ผู้ช่วงชิงดวงใจเล็งคนที่มีคู่แล้วเป็นพิเศษ ส่วนคนภักดีแทบไม่ถูกชวน
+    /* คนที่อยู่ "ที่เดียวกัน" มีโอกาสมากกว่าคนที่อยู่คนละมุมนครหลายเท่า
+       นี่คือจุดที่ผู้เล่นคุมได้: ย้ายใครไปอยู่กับใครก็เท่ากับจับคู่ให้เอง */
+    const spotA = Places.placeOf(a);
     const b = pickWeighted(candidates, (x) =>
-      T.mul(x, 'secret') * (T.has(a, 'heartThief') && x.spouseId ? 3 : 1));
+      T.mul(x, 'secret')
+      * (Places.placeOf(x).id === spotA.id ? CONFIG.samePlaceBonus : 1)
+      * (T.has(a, 'heartThief') && x.spouseId ? 3 : 1));
     lineage.addSecret(a.id, b.id, game.state.month);
     relations.shift(a.id, b.id, 'passion', 35);
     structureDirty = true;
@@ -593,16 +615,27 @@
     'ผู้คนเห็น{name}ยืนมองผู้อื่นนานผิดปกติ แล้วรีบหลบสายตาเมื่อถูกจับได้',
   ];
 
-  /** ระบายกับคู่ครองหรือคู่ลับ แล้วบันทึกเบาๆ */
+  /**
+   * ฉากใกล้ชิด — ไล่ระดับตามความปรารถนาที่สะสมไว้ระหว่างคู่นั้น
+   * ยิ่งผูกพันกันมานาน ฉากยิ่งเข้มขึ้น จนถึงระดับที่ตัดฉากไปเลย
+   */
+  function intimateLine(a, b, place) {
+    const bank = DT.intimate || {};
+    const heat = relations.value(a.id, b.id, 'passion');
+    const tier = heat >= 65 ? bank.burning : (heat >= 30 ? bank.close : bank.warm);
+    if (!tier || !tier.length) return null;
+    return dramaText(P.pick(tier), a, b, null, place);
+  }
+
+  /** ระบายกับคู่ครองหรือคู่ลับ แล้วบันทึกฉากใกล้ชิดเป็นระยะ */
   function relieveWith(p, other, kind) {
     P.relieve(p, kind);
     if (other) P.relieve(other, kind);
     if (other) relations.shift(p.id, other.id, 'passion', kind === 'lover' ? 6 : 3);
-    if (Math.random() < 0.25) {
-      ui.logEvent(kind === 'lover'
-        ? `${nm(p)}กับ${nm(other)}ลอบพบกันอีกครั้ง คืนนั้นยาวนานกว่าครั้งไหน`
-        : `${nm(p)}กับ${nm(other)}ใกล้ชิดกันเป็นพิเศษในเดือนนี้`,
-        kind === 'lover' ? 'secret' : 'event');
+    if (other && Math.random() < 0.45) {
+      const place = kind === 'lover' ? P.pick(DRAMA_PLACES) : Places.placeOf(p).name;
+      const line = intimateLine(p, other, place);
+      if (line) ui.logEvent(line, kind === 'lover' ? 'secret' : 'event');
     }
   }
 
@@ -697,9 +730,12 @@
 
   /** มีคนนอกบังเอิญเห็นคู่ลับเข้า — กลายเป็นคนถือความลับไว้ในมือ */
   function rollWitness(a, b) {
-    if (Math.random() >= CONFIG.witnessChance) return;
+    // ที่ลับตาคนถูกเห็นยากกว่ามาก และคนที่จะเห็นได้ต้องอยู่ที่เดียวกัน
+    const spot = Places.placeOf(a);
+    if (Math.random() >= CONFIG.witnessChance * spot.witness) return;
     const pool = adults().filter((x) =>
-      x.id !== a.id && x.id !== b.id && !relations.knows(x.id, a.id, b.id));
+      x.id !== a.id && x.id !== b.id && !relations.knows(x.id, a.id, b.id) &&
+      Places.placeOf(x).id === spot.id);
     if (!pool.length) return;
     const c = P.pick(pool);
     const place = P.pick(DRAMA_PLACES);
@@ -963,7 +999,9 @@
       // ฉากลอบพบกัน — สีสันบรรยากาศ และเป็นพฤติกรรมสะสมที่ก่อ trait ได้
       const pairSecret = (T.mul(a, 'secret') + T.mul(b, 'secret')) / 2;
       if (Math.random() < CONFIG.secretMeetChance * pairSecret) {
-        ui.logEvent(
+        const meetPlace = Places.placeOf(a).name;
+        const intimate = Math.random() < 0.5 ? intimateLine(a, b, meetPlace) : null;
+        ui.logEvent(intimate ||
           P.pick(SECRET_MEET_TEXTS).split('{a}').join(nm(a)).split('{b}').join(nm(b)),
           'secret');
         // ลอบพบกันจนชิน — ฝ่ายที่ทำซ้ำๆ ค่อยๆ กลายเป็นคนหลายใจ
@@ -1329,9 +1367,10 @@
     const matches = [];
     lineage.living().forEach((p) => {
       if (p.age < CONFIG.adultAge) return;
-      // หลอดความต้องการของ "คนคนนั้นเอง" เป็นตัวเร่งโอกาสของเขา
+      // หลอดความต้องการของ "คนคนนั้นเอง" และบุคลิกของที่ที่เขาอยู่ เป็นตัวเร่งโอกาส
       const heat = 1 + (DESIRE.eventBoostMax - 1) * Math.min(1, (p.desire || 0) / DESIRE.peakAt);
-      const chance = CONFIG.appearanceEventChance * heat
+      const spot = Places.placeOf(p);
+      const chance = CONFIG.appearanceEventChance * heat * spot.heat
         * (1 + appearanceDrought * CONFIG.eventRampPerMonth);
       if (Math.random() >= chance) return;
 
@@ -1345,6 +1384,11 @@
           if (game.state.month - last < wait) return;
         }
         if (!appearanceEligible(p, evt.when)) return;
+        // เรื่องต้องเกิดในที่ที่เขาอยู่จริง — ถ้าเทมเพลตไม่ระบุที่ก็เกิดที่ไหนก็ได้
+        if (evt.places && !evt.places.some((tag) => {
+          const pl = Places.forTag(tag);
+          return !pl || pl.id === spot.id;
+        })) return;
         if (evt.partner === 'inlaw') {
           const partners = inlawCandidates(p, evt);
           if (partners.length) matches.push({ p, evt, partner: P.pick(partners) });
@@ -1373,7 +1417,12 @@
   /** เปิดกล่องถามผู้เล่นสำหรับอีเวนต์รูปโฉมหนึ่งเรื่อง */
   function fireAppearance(mt) {
     const p = mt.p, evt = mt.evt, partner = mt.partner;
-    const place = P.pick(evt.places || ['กลางนคร']);
+    const spot = Places.placeOf(p);
+    const fitting = (evt.places || []).filter((tag) => {
+      const pl = Places.forTag(tag);
+      return !pl || pl.id === spot.id;
+    });
+    const place = P.pick(fitting.length ? fitting : (evt.places || [spot.name]));
     appearanceSeen.set(evt.id + ':' + p.id, game.state.month);
 
     // token เพิ่มเติมของคู่กรณี — คู่เขย/สะใภ้ หรือคนแปลกหน้าที่สุ่มขึ้นใหม่
@@ -1418,6 +1467,7 @@
 
     game.advanceMonth(lineage.monthlyIncome());
     ageEveryone();
+    rollPlaceEffects();
     rollPregnancies();
     rollMarriages();
     rollBirths();
@@ -1444,6 +1494,7 @@
       tree.refreshFigures();
     }
     ui.renderHUD();
+    cityMap.refresh();
     checkExtinction();
     pumpDecisions();   // ถามเรื่องที่ค้างอยู่ทีละเรื่อง โดยหยุดเวลารอ
   }
@@ -1523,6 +1574,12 @@
     },
   });
 
+  /* แผนที่นคร — ดูว่าใครอยู่ที่ไหนและย้ายคนไปเองได้ */
+  const cityMap = window.MapUI.create({
+    lineage,
+    onOpenPerson: (id) => { cityMap.hide(); openDetail(id); },
+  });
+
   function openDetail(id) {
     const p = lineage.get(id);
     if (!p) return;
@@ -1569,6 +1626,10 @@
   document.getElementById('speedBtn').addEventListener('click', () => {
     clock.cycleSpeed();
     ui.renderClockControls();
+  });
+
+  document.getElementById('mapBtn').addEventListener('click', () => {
+    if (cityMap.isOpen()) cityMap.hide(); else cityMap.show();
   });
 
   document.getElementById('autoBtn').addEventListener('click', () => {

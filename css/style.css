@@ -776,3 +776,61 @@ main {
   .profile-grid { grid-template-columns: 1fr; }
   .profile-head { flex-direction: column; align-items: flex-start; }
 }
+
+/* =============================================================================
+ * แผนที่นคร — ดูว่าใครอยู่ที่ไหน แล้วลาก/กดย้ายคนไปเองได้
+ * ========================================================================== */
+.map-overlay {
+  position: fixed; inset: 0; z-index: 96;
+  display: none; overflow-y: auto; background: var(--ground);
+}
+.map-overlay.show { display: block; }
+.map-page { max-width: 1180px; margin: 0 auto; padding: 16px 16px 50px; }
+
+.map-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.map-close {
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  padding: 7px 14px; background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 999px;
+}
+.map-close:hover { border-color: var(--gold); color: var(--gold-bright); }
+.map-hint { font-size: 12.5px; color: var(--ink-dim); }
+
+.map-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.place-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; cursor: pointer; transition: border-color .12s ease;
+}
+.place-card:hover, .place-card.over { border-color: var(--gold); }
+.place-card header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.place-icon { font-size: 20px; }
+.place-name { font-weight: 700; color: var(--gold-bright); }
+.place-count {
+  margin-left: auto; font-size: 11.5px; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.place-desc { margin: 0 0 8px; font-size: 12px; color: var(--ink-dim); line-height: 1.45; }
+.place-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.place-stats span {
+  font-size: 11px; padding: 1px 8px; border-radius: 999px;
+  background: var(--chip-bg); border: 1px solid var(--line); color: var(--ink-dim);
+}
+.place-people { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+
+.person-pin {
+  font-family: inherit; cursor: grab; display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px 2px 3px; font-size: 12.5px; color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px;
+}
+.person-pin.male { border-color: var(--male); }
+.person-pin.female { border-color: var(--female); }
+.person-pin.picked { box-shadow: 0 0 0 2px var(--gold); }
+.person-pin:active { cursor: grabbing; }
+.pin-face { width: 22px; height: 22px; display: block; }
+.pin-face svg { width: 100%; height: 100%; display: block; }
+.pin-name { white-space: nowrap; }
+.pin-preg { font-style: normal; font-size: 11px; }
+.pin-child { color: var(--ink-dim); }
