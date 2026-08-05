@@ -19,6 +19,7 @@
     {
       id: 'traitM-wandering',
       when: { gender: 'male', blood: true, minCharm: 45, maxAge: 50, notTrait: ['wanderingBee', 'onlyOne'] },
+      traitAffinity: ['charmer', 'freeHeart', 'ardent'],
       partner: 'stranger',
       places: ['โรงน้ำชาเขตกลาง', 'ตลาดแสงจันทร์', 'ลานแสงสีกลางนคร'],
       title: 'ค่ำนี้{name}พบ{stranger}อีกคน',
@@ -58,6 +59,7 @@
     {
       id: 'traitM-heart-thief',
       when: { gender: 'male', blood: true, minCharm: 60, maxAge: 50, notTrait: ['heartThief', 'onlyOne', 'devoted'] },
+      traitAffinity: ['wanderingBee', 'freeHeart', 'ardent'],
       partner: 'inlaw',
       places: ['งานเลี้ยงสภานคร', 'ระเบียงชมดาวของตระกูล'],
       title: '{name}กับ{partner}ที่{place}',
@@ -113,6 +115,7 @@
     {
       id: 'traitM-restless-night',
       when: { gender: 'male', blood: true, hasSpouse: true, minDesire: 70, maxAge: 65 },
+      traitAffinity: ['ardent', 'wanderingBee'],
       places: ['เรือนใหญ่ประจำตระกูล', 'ลานยุทธ์หลังเรือนใหญ่'],
       title: 'ค่ำคืนที่{name}ข่มใจไม่ลง',
       text: 'ความร้อนรุ่มในกายของ{name}ไม่ยอมสงบมาหลายคืนแล้ว ' +
@@ -133,6 +136,7 @@
     {
       id: 'traitM-longing',
       when: { gender: 'male', blood: true, hasSpouse: false, minDesire: 70, maxAge: 60 },
+      traitAffinity: ['ardent', 'wanderingBee', 'freeHeart'],
       partner: 'stranger',
       places: ['โรงเตี๊ยมชายขอบนคร', 'ตลาดแสงจันทร์', 'ท่าเรือเหาะเขตตะวันตก'],
       title: 'ความว้าวุ่นของ{name}ที่{place}',

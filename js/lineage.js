@@ -74,6 +74,8 @@
       const baby = P.createChild(realFather, mother);
       baby.secretChild = true;
       baby.trueFatherId = realFather.id;
+      // บิดาที่เป็นคนแปลกหน้าไม่ได้อยู่ในทะเบียนตระกูล เก็บไว้แค่ชื่อให้ผู้เล่นเห็น
+      baby.trueFatherName = realFather.name + (realFather.origin ? ' ' + realFather.origin : '');
       const husband = mother.spouseId ? get(mother.spouseId) : null;
       if (husband && husband.gender === 'male') {
         baby.fatherId = husband.id;        // โลกเชื่อว่าเป็นลูกของสามี

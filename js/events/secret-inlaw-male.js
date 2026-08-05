@@ -21,6 +21,7 @@
     {
       id: 'inlawM-moonwine',
       when: { gender: 'male', blood: true, minCharm: 50, maxAge: 50 },
+      traitAffinity: ['heartThief', 'wanderingBee', 'ardent'],
       partner: 'inlaw',
       partnerWhen: { minCharm: 55 },
       places: ['หอชมจันทร์ประจำตระกูล', 'ศาลากลางสวนน้ำตก'],

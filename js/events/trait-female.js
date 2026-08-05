@@ -32,6 +32,7 @@
     {
       id: 'traitF-limelight-gown',
       when: { gender: 'female', blood: true, minCharm: 45, maxAge: 45, notTrait: 'limelight' },
+      traitAffinity: ['ardent', 'freeHeart', 'charmer'],
       places: ['งานเลี้ยงสภานคร', 'ลานแสงสีกลางนคร', 'งานประดับดาวประจำปี'],
       title: 'อาภรณ์สำหรับค่ำคืนของ{name}',
       text: 'ช่างตัดอาภรณ์นำแบบมาให้{name}เลือกก่อนงานที่{place} ' +
@@ -51,6 +52,7 @@
     {
       id: 'traitF-limelight-walk',
       when: { gender: 'female', blood: true, minShape: 65, maxAge: 42, notTrait: 'limelight' },
+      traitAffinity: ['ardent', 'freeHeart'],
       places: ['สะพานลอยฟ้าเขตกลาง', 'ตลาดแสงจันทร์ยามดึก'],
       title: '{name}กับค่ำคืนที่{place}',
       text: 'ค่ำนี้{name}ออกเดินเล่นที่{place}ตามลำพัง ลมเย็นและแสงไฟทำให้นางอยากทดสอบ ' +
@@ -66,10 +68,12 @@
       ],
     },
 
-    /* ---- กลุ่มคนแปลกหน้า: วงสังสรรค์ที่นางเป็นฝ่ายเลือกเข้าไปเอง ---- */
+    /* ---- กลุ่มคนแปลกหน้า: วงสังสรรค์ที่นางเป็นฝ่ายเลือกเข้าไปเอง ----
+       ทางเลือกสุดท้ายอาจตั้งครรภ์กับคนแปลกหน้าที่ไม่มีวันปรากฏในผังตระกูล */
     {
       id: 'traitF-circle-of-eyes',
       when: { gender: 'female', blood: true, trait: 'limelight', maxAge: 45 },
+      traitAffinity: ['limelight', 'radiantOne', 'freeHeart', 'ardent'],
       partner: 'stranger',
       group: [3, 5],
       places: ['คฤหาสน์ลับเขตบน', 'ห้องสังสรรค์ชั้นดาดฟ้าหอคอยใต้'],
@@ -79,10 +83,14 @@
             'ทุกคนรู้กติกาดีว่าใครจะเข้าใกล้ได้แค่ไหน เจ้าตัวเป็นผู้กำหนดเองทั้งหมด',
       options: [
         { label: 'เข้าไปเป็นศูนย์กลางของวง', value: 'center', note: 'เครดิต +200 · ชื่อเสียง +2 · อาจกลายเป็นดอกไม้ที่ผู้คนหมายปอง', tone: 'accept',
-          effect: { gold: 200, rep: 2,
+          effect: { gold: 200, rep: 2, desire: -45,
             tally: { key: 'display', trait: 'radiantOne', need: 2,
               story: 'ยืนกลางวงสายตาจนรู้ตัวว่าชอบการเป็นที่ปรารถนา' },
             text: 'ทั้งวงที่{place}หมุนรอบ{name}ทั้งค่ำ และนางคุมจังหวะทุกอย่างไว้ในมือ' } },
+        { label: 'เลือก{stranger}ไว้เป็นคนสุดท้ายของค่ำคืน', value: 'choose', note: 'ได้ระบายเต็มที่ · อาจตั้งครรภ์กับคนแปลกหน้า · ได้คุณลักษณะใหม่',
+          effect: { desire: -95, child: 'stranger', rep: -1,
+            trait: 'radiantOne', traitStory: 'ค้นพบว่าตนพอใจที่จะเป็นสิ่งที่ผู้คนปรารถนา',
+            text: 'เมื่อวงที่{place}สลายไป {name}เหลือไว้เพียง{stranger}คนเดียว — ไม่มีใครรู้ว่าเกิดอะไรขึ้นหลังจากนั้น' } },
         { label: 'คุมระยะไว้แค่บทสนทนา', value: 'talk', note: 'ชื่อเสียง +3', tone: 'accept',
           effect: { rep: 3, text: '{name}สนทนากับทุกคนอย่างมีชั้นเชิงแล้วกลับเรือนก่อนดึก' } },
         { label: 'ฉีกบัตรเชิญทิ้ง', value: 'skip', note: 'ไม่ไปเสียเลย', tone: 'decline',
@@ -112,6 +120,7 @@
     {
       id: 'traitF-evening-rose',
       when: { gender: 'female', blood: true, minAge: 36, minCharm: 55, notTrait: 'eveningRose' },
+      traitAffinity: ['limelight', 'charmer', 'ardent'],
       partner: 'stranger',
       places: ['หอทัศนาเขตเหนือ', 'โรงน้ำชาเขตกลาง'],
       title: 'ชายหนุ่มรุ่นหลังต้องมนต์{name}',
@@ -130,6 +139,7 @@
     {
       id: 'traitF-restless-night',
       when: { gender: 'female', blood: true, hasSpouse: true, minDesire: 70, maxAge: 60 },
+      traitAffinity: ['ardent', 'limelight', 'radiantOne'],
       places: ['เรือนใหญ่ประจำตระกูล', 'หอชมจันทร์ประจำตระกูล'],
       title: 'ค่ำคืนที่{name}ข่มใจไม่ลง',
       text: 'หลายคืนแล้วที่{name}นอนตาค้างอยู่ที่{place} คู่ครองหลับสนิทอยู่ข้างกาย ' +
@@ -150,6 +160,7 @@
     {
       id: 'traitF-longing',
       when: { gender: 'female', blood: true, hasSpouse: false, minDesire: 70, maxAge: 55 },
+      traitAffinity: ['ardent', 'freeHeart', 'limelight'],
       partner: 'stranger',
       places: ['ตลาดแสงจันทร์', 'สวนลอยเขตตะวันออก', 'โรงน้ำชาเขตกลาง'],
       title: 'ความว้าวุ่นของ{name}ที่{place}',

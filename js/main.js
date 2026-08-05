@@ -817,13 +817,20 @@
     return b;
   }
 
-  /** มีบุตรจากอีเวนต์ — กับคู่สมรส คู่ลับ หรือคู่กรณีของอีเวนต์ */
-  function eventChild(p, source, eventPartner) {
+  /** มีบุตรจากอีเวนต์ — กับคู่สมรส คู่ลับ คู่กรณี หรือคนแปลกหน้าที่ไม่มีวันรู้จัก */
+  function eventChild(p, source, eventPartner, tokens) {
     let partner = null;
     if (source === 'spouse') {
       partner = p.spouseId ? lineage.get(p.spouseId) : null;
     } else if (source === 'partner') {
       partner = eventPartner || null;
+    } else if (source === 'stranger') {
+      // บิดาเป็นคนแปลกหน้าที่ไม่เคยเข้าตระกูล — สร้างไว้เพื่อสืบพันธุกรรมเท่านั้น
+      // ไม่ลงทะเบียนเข้าผัง จึงไม่กินที่ ไม่แก่ ไม่ถูกจับคู่ และไม่มีเส้นในผัง
+      if (p.gender !== 'female') return null;
+      partner = P.createOutsider('male', p.age, p.charm);
+      if (tokens && tokens['{stranger}']) partner.name = tokens['{stranger}'];
+      partner.strangerFather = true;
     } else {
       const lovers = lineage.secretsOf(p.id).filter((x) => x.gender !== p.gender);
       partner = lovers.length ? P.pick(lovers) : makeSecretFor(p);
@@ -880,7 +887,8 @@
         ui.logEvent(`มีข่าวลือว่า${nm(p)}กับ${nm(lover)}สนิทสนมกันเกินปกติ`, 'secret');
       }
     }
-    if (eff.child) eventChild(p, eff.child, partner);   // 'lover' สร้างคู่ลับให้เองถ้ายังไม่มี
+    // 'lover' สร้างคู่ลับให้เองถ้ายังไม่มี · 'stranger' บิดาไม่เคยเข้าผังตระกูล
+    if (eff.child) eventChild(p, eff.child, partner, tokens);
   }
 
   /** หลอดความต้องการที่สูงที่สุดในตระกูล ใช้เร่งความถี่ของอีเวนต์แนวนี้ */
@@ -913,7 +921,14 @@
     if (!matches.length) { appearanceDrought++; return; }   // ยังไม่มีใครเข้าเงื่อนไข — ทบโอกาสไว้
     appearanceDrought = 0;
 
-    const { p, evt, partner } = matches[Math.floor(Math.random() * matches.length)];
+    /* คนที่มีคุณลักษณะตรงกับเรื่องนั้นจะเจอเรื่องแนวนั้นบ่อยขึ้นมาก
+       (evt.traitAffinity คือรายชื่อ trait ที่ "เข้าทาง" ของอีเวนต์นั้น)
+       และคนที่หลอดความต้องการใกล้เต็มก็ถูกหยิบขึ้นมาก่อนเช่นกัน */
+    const { p, evt, partner } = pickWeighted(matches, (mt) => {
+      const own = (mt.evt.traitAffinity || []).filter((id) => T.has(mt.p, id)).length;
+      const heat = Math.min(1, (mt.p.desire || 0) / DESIRE.peakAt);
+      return (1 + own * 1.8) * (1 + heat);
+    });
     const place = P.pick(evt.places || ['กลางนคร']);
     appearanceSeen.add(evt.id + ':' + p.id);
 

@@ -22,6 +22,7 @@
     {
       id: 'inlawF-training',
       when: { gender: 'female', blood: true, minCharm: 50, maxAge: 45 },
+      traitAffinity: ['freeHeart', 'ardent', 'radiantOne'],
       partner: 'inlaw',
       partnerWhen: { minCharm: 45 },
       places: ['หอฝึกประจำตระกูล', 'ลานยุทธ์หลังเรือนใหญ่'],

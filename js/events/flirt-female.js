@@ -58,6 +58,7 @@
     {
       id: 'flirtF-group',
       when: { gender: 'female', blood: true, minCharm: 65, maxAge: 42 },
+      traitAffinity: ['limelight', 'radiantOne'],
       partner: 'stranger',
       group: [2, 4],
       places: ['งานเลี้ยงสภานคร', 'มหรสพประลองพลัง'],

@@ -198,7 +198,12 @@
           <section class="detail-kin">
             <h4>เครือญาติ</h4>
             ${row('บิดา', nameChip(father))}
-            ${trueFather ? row('บิดาแท้จริง (ไม่มีผู้ใดรู้)', nameChip(trueFather)) : ''}
+            ${trueFather
+              ? row('บิดาแท้จริง (ไม่มีผู้ใดรู้)', nameChip(trueFather))
+              : (p.trueFatherName
+                ? row('บิดาแท้จริง (ไม่มีผู้ใดรู้)',
+                    `<span class="kin-none">${p.trueFatherName} — คนนอกตระกูล</span>`)
+                : '')}
             ${row('มารดา', nameChip(mother))}
             ${row('คู่ครอง', spouse ? nameChip(spouse) : (adult ? '<span class="kin-none">ยังไม่มีคู่</span>' : '<span class="kin-none">—</span>'))}
             <div class="detail-row kids"><span>บุตร (${kids.length})</span>

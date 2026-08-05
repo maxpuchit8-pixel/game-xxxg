@@ -58,6 +58,7 @@
     {
       id: 'flirtM-group',
       when: { gender: 'male', blood: true, minCharm: 65, maxAge: 45 },
+      traitAffinity: ['wanderingBee', 'charmer'],
       partner: 'stranger',
       group: [2, 4],
       places: ['งานประดับดาวประจำปี', 'มหรสพประลองพลัง'],
