@@ -88,6 +88,7 @@
       mother.pregnancy = {
         fatherId: father.id,
         secret,
+        motherOnly: !!(opts && opts.motherOnly),
         month: 0,
         startMonth: (opts && opts.month) || 0,
         // เก็บสัดส่วนก่อนตั้งครรภ์ไว้ เพื่อคืนรูปหลังคลอด
@@ -132,7 +133,9 @@
       const father = get(pg.fatherId) || pg.fatherRef;
       endPregnancy(mother);
       if (!father) return null;
-      return pg.secret ? birthSecret(father, mother) : birth(father, mother);
+      return pg.secret
+        ? birthSecret(father, mother, { motherOnly: pg.motherOnly })
+        : birth(father, mother);
     }
 
     /**
@@ -144,7 +147,7 @@
      *   - ญาติสายตรงเช็คจาก fatherId ทางทะเบียนโดยเจตนา — พี่น้องร่วมพ่อแท้จริง
      *     ที่ไม่รู้จักกันจึงอาจแอบคบกันเองได้ เป็นละครน้ำเน่าที่ตั้งใจเปิดช่องไว้
      */
-    function birthSecret(realFather, mother) {
+    function birthSecret(realFather, mother, opts) {
       if (!realFather || !mother) return null;
       if (mother.childIds.length >= CONFIG.maxChildren) return null;
       const baby = P.createChild(realFather, mother);
@@ -152,7 +155,10 @@
       baby.trueFatherId = realFather.id;
       // บิดาที่เป็นคนแปลกหน้าไม่ได้อยู่ในทะเบียนตระกูล เก็บไว้แค่ชื่อให้ผู้เล่นเห็น
       baby.trueFatherName = realFather.name + (realFather.origin ? ' ' + realFather.origin : '');
-      const husband = mother.spouseId ? get(mother.spouseId) : null;
+      /* motherOnly = เด็กเป็นของมารดาผู้เดียว ไม่ผูกกับสามีแม้จะมีอยู่
+         ใช้กับครรภ์ที่เกิดในหอเริงรมย์ ที่ซึ่งไม่มีใครรู้จักใครเลย */
+      const husband = (opts && opts.motherOnly) ? null
+        : (mother.spouseId ? get(mother.spouseId) : null);
       if (husband && husband.gender === 'male') {
         baby.fatherId = husband.id;        // โลกเชื่อว่าเป็นลูกของสามี
         husband.childIds.push(baby.id);

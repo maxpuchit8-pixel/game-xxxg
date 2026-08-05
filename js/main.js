@@ -317,7 +317,7 @@
 
   function rollMarriages() {
     lineage.living().forEach((p) => {
-      if (!p.isBlood || p.spouseId || !p.willMarry) return;
+      if (!p.isBlood || p.spouseId || !p.willMarry || inMask(p)) return;
       if (p.age < CONFIG.adultAge || p.age > CONFIG.marriageMaxAge) return;
       // เสน่ห์สูงทำให้มีผู้มาทาบทามบ่อยขึ้น และดึงดูดคนที่ดีกว่า
       const cr = data.CHARM.marriageChanceRange;
@@ -356,13 +356,17 @@
    */
   function completeBirth(father, mother, opts) {
     const secret = !!(opts && opts.secret);
-    const pg = lineage.conceive(mother, father, { secret, month: game.state.month });
+    const motherOnly = !!(opts && opts.motherOnly);
+    const pg = lineage.conceive(mother, father,
+      { secret, motherOnly, month: game.state.month });
     if (!pg) return null;
     structureDirty = true;
     ui.logEvent(
-      secret
-        ? `${nm(mother)}เริ่มตั้งครรภ์ — มีเพียงนางที่รู้ว่าใครคือบิดา`
-        : `${nm(mother)}ตั้งครรภ์กับ${nm(father)}แล้ว ทั้งเรือนรอคอยวันนั้นอยู่`,
+      motherOnly
+        ? `${nm(mother)}เริ่มตั้งครรภ์ — บุตรในครรภ์นี้จะเป็นของนางผู้เดียว`
+        : (secret
+          ? `${nm(mother)}เริ่มตั้งครรภ์ — มีเพียงนางที่รู้ว่าใครคือบิดา`
+          : `${nm(mother)}ตั้งครรภ์กับ${nm(father)}แล้ว ทั้งเรือนรอคอยวันนั้นอยู่`),
       secret ? 'secret' : 'birth');
     return pg;
   }
@@ -402,7 +406,7 @@
 
       // ครรภ์ลับกับสามีที่ยังอยู่ในเรือน — ยิ่งท้องโตยิ่งน่าสงสัย
       const husband = mother.spouseId ? lineage.get(mother.spouseId) : null;
-      if (pg.secret && husband && husband.alive && !T.has(husband, 'openHeart')) {
+      if (pg.secret && !inMask(mother) && husband && husband.alive && !T.has(husband, 'openHeart')) {
         relations.addSuspicion(husband.id, mother.id, CONFIG.secretPregnancySuspicion);
       }
 
@@ -495,6 +499,7 @@
       const father = p.gender === 'male' ? p : spouse;
       const mother = p.gender === 'female' ? p : spouse;
       if (mother.pregnancy) return;   // ตั้งครรภ์อยู่แล้ว
+      if (inMask(mother) || inMask(father)) return;   // อยู่ในหอ กฎอื่นเข้าไม่ถึง
       if (mother.age < CONFIG.fertileMin || mother.age > CONFIG.fertileMax) return;
       if (mother.childIds.length >= CONFIG.maxChildren) return;
       if (Math.random() >= CONFIG.birthChancePerMonth * T.mul(mother, 'fertility')) return;
@@ -654,6 +659,17 @@
       p.desire = Math.min(120, (p.desire || 0) + P.desireRate(p) * swing);
       if (p.desire < DESIRE.peakAt) return;
 
+      // 0) อยู่ในหอเริงรมย์ — โลกข้างนอกเข้าไม่ถึง ใช้ทางของหอเท่านั้น
+      if (inMask(p)) {
+        P.relieve(p, 'lover');
+        tallyTrait(p, 'display', p.gender === 'female' ? 'radiantOne' : 'wanderingBee', 3,
+          'ไปหอเริงรมย์หน้ากากบ่อยจนกลายเป็นความเคยชิน');
+        if (Math.random() < 0.45) {
+          ui.logEvent(P.pick(MASK_TEXTS).split('{a}').join(nm(p)), 'secret');
+        }
+        return;
+      }
+
       // 1) คู่ครอง — ตอบสนองไหมขึ้นกับหลอดของอีกฝ่ายเองด้วย
       const sp = p.spouseId ? lineage.get(p.spouseId) : null;
       if (sp && sp.alive && sp.age >= CONFIG.adultAge) {
@@ -669,20 +685,6 @@
         const lover = P.pick(lovers);
         relieveWith(p, lover, 'lover');
         tallyTrait(p, 'tryst', 'freeHeart', 4, 'พึ่งพาคนนอกเรือนจนเคยชิน');
-        return;
-      }
-
-      // 2.5) อยู่ในหอเริงรมย์หน้ากาก — ไม่มีใครรู้จักใคร จึงหาทางระบายได้เสมอ
-      const spot = Places.placeOf(p);
-      if (spot.anonymous) {
-        P.relieve(p, 'lover');
-        tallyTrait(p, 'display', p.gender === 'female' ? 'radiantOne' : 'wanderingBee', 3,
-          'ไปหอเริงรมย์หน้ากากบ่อยจนกลายเป็นความเคยชิน');
-        if (Math.random() < 0.45) {
-          ui.logEvent(P.pick(MASK_TEXTS).split('{a}').join(nm(p)), 'secret');
-        }
-        /* ไม่จับคู่กับใครที่นี่โดยอัตโนมัติ — การจับคู่ในหอเกิดได้เฉพาะกับคนที่
-           ผู้เล่นลากเข้ามาเอง ผ่านบทต่อเนื่องใน rollMaskChain เท่านั้น */
         return;
       }
 
@@ -795,7 +797,8 @@
       const father = p.gender === 'male' ? p : partner;
       if (!mother.pregnancy && mother.age >= CONFIG.fertileMin && mother.age <= CONFIG.fertileMax
           && Math.random() < CONFIG.maskConceiveChance) {
-        completeBirth(father, mother, { secret: true });
+        // เกิดในหอที่ไม่มีใครรู้จักใคร — เด็กเป็นของมารดาผู้เดียว ไม่ผูกกับสามี
+        completeBirth(father, mother, { secret: true, motherOnly: true });
       }
     }
 
@@ -840,9 +843,17 @@
   const DRAMA_PLACES = ['หลังเรือนใหญ่', 'ตรอกหลังตลาดแสงจันทร์', 'หอชมจันทร์',
     'ท่าเรือเหาะเขตตะวันตก', 'สวนลอยเขตตะวันออก'];
 
-  /** ผู้ใหญ่ที่ยังมีชีวิตทั้งหมด ใช้บ่อยในระบบดราม่า */
+  /**
+   * อยู่ในหอเริงรมย์หน้ากากอยู่หรือไม่
+   * ที่นั่นเป็นโลกปิด — กฎและเหตุการณ์อื่นทั้งหมดของเกมเข้าไม่ถึงคนที่อยู่ข้างใน
+   * มีแต่บทของหอเองที่เดินอยู่ และผลของการตั้งครรภ์เท่านั้นที่ส่งออกมาข้างนอก
+   * (ยกเว้นการแก่ตัวและการเสียชีวิต ซึ่งเป็นเรื่องของกาลเวลาไม่ใช่เหตุการณ์)
+   */
+  function inMask(p) { return !!Places.placeOf(p).anonymous; }
+
+  /** ผู้ใหญ่ที่ยังมีชีวิตทั้งหมด ใช้บ่อยในระบบดราม่า — ไม่นับคนที่อยู่ในหอ */
   function adults() {
-    return lineage.living().filter((p) => p.age >= CONFIG.adultAge);
+    return lineage.living().filter((p) => p.age >= CONFIG.adultAge && !inMask(p));
   }
 
   /**
@@ -892,7 +903,8 @@
   function rollConfrontation() {
     const hot = relations.suspicionsAbove(CONFIG.confrontAt)
       .map((s) => ({ obs: lineage.get(s.obsId), tgt: lineage.get(s.tgtId), level: s.level }))
-      .filter((s) => s.obs && s.tgt && s.obs.alive && s.tgt.alive && s.obs.spouseId === s.tgt.id);
+      .filter((s) => s.obs && s.tgt && s.obs.alive && s.tgt.alive && s.obs.spouseId === s.tgt.id
+        && !inMask(s.obs) && !inMask(s.tgt));
     if (!hot.length) return;
     const { obs, tgt } = P.pick(hot);
     const lovers = lineage.secretsOf(tgt.id).filter((x) => x.gender !== tgt.gender);
@@ -1050,7 +1062,7 @@
     const picks = [];
     byTarget.forEach((others, centerId) => {
       const a = lineage.get(centerId);
-      if (!a || !a.alive || a.age < CONFIG.adultAge) return;
+      if (!a || !a.alive || a.age < CONFIG.adultAge || inMask(a)) return;
       const list = others.map(lineage.get).filter((x) => x && x.alive && x.gender !== a.gender);
       if (list.length >= 2) picks.push({ a, b: list[0], c: list[1] });
     });
@@ -1130,6 +1142,7 @@
     lineage.activeSecrets().forEach((r) => {
       const a = lineage.get(r.aId), b = lineage.get(r.bId);
       if (!a || !b || !a.alive || !b.alive) return;
+      if (inMask(a) || inMask(b)) return;   // อยู่ในหอ เรื่องข้างนอกหยุดไว้ก่อน
       const father = a.gender === 'male' ? a : b;
       const mother = a.gender === 'female' ? a : b;
       if (father.gender === mother.gender) return;
@@ -1504,7 +1517,7 @@
 
     const matches = [];
     lineage.living().forEach((p) => {
-      if (p.age < CONFIG.adultAge) return;
+      if (p.age < CONFIG.adultAge || inMask(p)) return;
       // หลอดความต้องการของ "คนคนนั้นเอง" และบุคลิกของที่ที่เขาอยู่ เป็นตัวเร่งโอกาส
       const heat = 1 + (DESIRE.eventBoostMax - 1) * Math.min(1, (p.desire || 0) / DESIRE.peakAt);
       const spot = Places.placeOf(p);
