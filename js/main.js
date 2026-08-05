@@ -609,6 +609,14 @@
 
   const DESIRE = data.DESIRE;
 
+  /* คืนหน้ากาก — ไม่มีชื่อ ไม่มีใบหน้า และไม่มีใครถามถึงวันรุ่งขึ้น */
+  const MASK_TEXTS = [
+    '{a}สวมหน้ากากเดินเข้าหอเริงรมย์คืนนั้น และไม่มีใครในนั้นถามว่าเป็นใคร',
+    'ในหอเริงรมย์ที่ไม่มีใครรู้จักใคร {a}เลือกคู่ของค่ำคืนเองด้วยเพียงสายตา',
+    '{a}กลับจากหอเริงรมย์ก่อนฟ้าสางพร้อมหน้ากากในมือ — ไม่มีใครรู้ว่าคืนนั้นเป็นของใคร',
+    'ม่านชั้นในของหอเริงรมย์ปิดลงหลัง{a} และเปิดอีกทีเมื่อแสงแรกมาถึง',
+  ];
+
   const STRAY_TEXTS = [
     '{name}นอนไม่หลับทั้งคืน ออกไปฝึกยุทธ์กลางลานจนฟ้าสางเพื่อข่มใจตนเอง',
     '{name}ออกจากเรือนไปเดินเล่นกลางนครยามดึกโดยไม่บอกใครว่าไปไหน',
@@ -661,6 +669,27 @@
         const lover = P.pick(lovers);
         relieveWith(p, lover, 'lover');
         tallyTrait(p, 'tryst', 'freeHeart', 4, 'พึ่งพาคนนอกเรือนจนเคยชิน');
+        return;
+      }
+
+      // 2.5) อยู่ในหอเริงรมย์หน้ากาก — ไม่มีใครรู้จักใคร จึงหาทางระบายได้เสมอ
+      const spot = Places.placeOf(p);
+      if (spot.anonymous) {
+        P.relieve(p, 'lover');
+        tallyTrait(p, 'display', p.gender === 'female' ? 'radiantOne' : 'wanderingBee', 3,
+          'ไปหอเริงรมย์หน้ากากบ่อยจนกลายเป็นความเคยชิน');
+        if (Math.random() < 0.45) {
+          ui.logEvent(P.pick(MASK_TEXTS).split('{a}').join(nm(p)), 'secret');
+        }
+        // นานๆ ครั้งคู่ของคืนนั้นตามมาเจอกันข้างนอก แล้วกลายเป็นความสัมพันธ์จริง
+        if (Math.random() < CONFIG.maskLingerChance) {
+          const lover = makeSecretFor(p);
+          if (lover) {
+            ui.logEvent(
+              `คู่ของ${nm(p)}จากคืนหน้ากากตามมาพบกันอีกข้างนอก — คราวนี้ทั้งคู่รู้ชื่อกันแล้ว`,
+              'secret');
+          }
+        }
         return;
       }
 
@@ -720,7 +749,10 @@
     if (!sp || !sp.alive) return;
     if (T.has(sp, 'openHeart')) return;            // เปิดใจไว้แต่แรก ไม่ถือสา
     const trustGuard = relations.value(sp.id, cheater.id, 'trust') / 100;
-    const gain = CONFIG.suspicionPerClue * (T.has(sp, 'jealous') ? 1.6 : 1) * (1 - trustGuard * 0.5);
+    // พบกันในที่ที่ไม่มีใครรู้จักใคร แทบไม่เหลือร่องรอยให้ระแวง
+    const masked = Places.placeOf(cheater).anonymous ? 0.25 : 1;
+    const gain = CONFIG.suspicionPerClue * masked
+      * (T.has(sp, 'jealous') ? 1.6 : 1) * (1 - trustGuard * 0.5);
     const level = relations.addSuspicion(sp.id, cheater.id, gain);
     if (level > 22 && Math.random() < 0.4) {
       ui.logEvent(dramaText(P.pick(DT.clue), cheater, sp), 'secret');
@@ -732,6 +764,7 @@
   function rollWitness(a, b) {
     // ที่ลับตาคนถูกเห็นยากกว่ามาก และคนที่จะเห็นได้ต้องอยู่ที่เดียวกัน
     const spot = Places.placeOf(a);
+    if (spot.anonymous) return;   // ทุกคนสวมหน้ากาก ไม่มีใครระบุตัวใครได้
     if (Math.random() >= CONFIG.witnessChance * spot.witness) return;
     const pool = adults().filter((x) =>
       x.id !== a.id && x.id !== b.id && !relations.knows(x.id, a.id, b.id) &&
