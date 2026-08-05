@@ -20,7 +20,7 @@
       heritable: 0.24,
       relates: ['freeHeart', 'charmer', 'heartThief'],
       conflicts: ['onlyOne', 'devoted'],
-      effects: { charm: 4, secret: 2.2, marriagePull: 1.2 },
+      effects: { charm: 4, secret: 2.2, marriagePull: 1.2, desire: 1.4 },
     },
     {
       id: 'ironGuard', label: 'ผู้พิทักษ์เรือน',
@@ -51,7 +51,7 @@
       desc: 'ต้องมนต์สตรีที่อาวุโสกว่า เห็นความงามในสิ่งที่กาลเวลาขัดเกลามาแล้ว',
       gender: 'male',
       relates: ['charmer'],
-      effects: { partnerAge: 8, charm: 2 },
+      effects: { partnerAge: 8, charm: 2, desire: 1.15 },
     },
   ]);
 })(typeof self !== 'undefined' ? self : this);

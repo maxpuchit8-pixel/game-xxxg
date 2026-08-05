@@ -109,6 +109,47 @@
       ],
     },
 
+    /* ---- หลอดเต็ม + มีคู่ครอง ---- */
+    {
+      id: 'traitM-restless-night',
+      when: { gender: 'male', blood: true, hasSpouse: true, minDesire: 70, maxAge: 65 },
+      places: ['เรือนใหญ่ประจำตระกูล', 'ลานยุทธ์หลังเรือนใหญ่'],
+      title: 'ค่ำคืนที่{name}ข่มใจไม่ลง',
+      text: 'ความร้อนรุ่มในกายของ{name}ไม่ยอมสงบมาหลายคืนแล้ว ' +
+            'คู่ครองหลับสนิทอยู่ในเรือน ส่วนเขาออกมายืนอยู่ที่{place}ตามลำพัง',
+      options: [
+        { label: 'กลับเข้าเรือนไปหาคู่ครอง', value: 'ask', note: 'ได้ระบาย · หลอดลดลงมาก', tone: 'accept',
+          effect: { desire: -70, rep: 1,
+            text: '{name}กลับเข้าเรือนก่อนฟ้าสาง และไม่ได้ออกมาที่{place}อีกเลยคืนนั้น' } },
+        { label: 'ฝึกยุทธ์จนหมดแรง', value: 'train', note: 'หลอดลดเล็กน้อย · อาจกลายเป็นผู้ถือกายเป็นวิหาร', tone: 'decline',
+          effect: { desire: -28,
+            tally: { key: 'restrain', trait: 'ascetic', need: 3,
+              story: 'ฝึกข่มใจครั้งแล้วครั้งเล่าจนความต้องการไม่รบกวนอีก' },
+            text: '{name}ฝึกยุทธ์ที่{place}จนฟ้าสาง เหงื่อท่วมตัวและใจสงบลงในที่สุด' } },
+      ],
+    },
+
+    /* ---- หลอดเต็ม + ไม่มีคู่ ---- */
+    {
+      id: 'traitM-longing',
+      when: { gender: 'male', blood: true, hasSpouse: false, minDesire: 70, maxAge: 60 },
+      partner: 'stranger',
+      places: ['โรงเตี๊ยมชายขอบนคร', 'ตลาดแสงจันทร์', 'ท่าเรือเหาะเขตตะวันตก'],
+      title: 'ความว้าวุ่นของ{name}ที่{place}',
+      text: '{name}ยังไร้คู่ครอง คืนนี้ที่{place} {stranger}เข้ามานั่งใกล้เกินกว่าจะเป็นความบังเอิญ ' +
+            'และเขาก็รู้ตัวว่าไม่อยากขยับหนี',
+      options: [
+        { label: 'ตอบรับค่ำคืนนั้น', value: 'go', note: 'ได้ระบาย · อาจเกิดความสัมพันธ์ลับ', tone: 'accept',
+          effect: { desire: -65, secret: true,
+            text: '{name}ไม่ได้กลับเรือนคืนนั้น และไม่มีใครที่{place}เอ่ยถามสักคำ' } },
+        { label: 'วางเงินค่าเหล้าแล้วเดินกลับ', value: 'leave', note: 'หลอดลดเล็กน้อย', tone: 'decline',
+          effect: { desire: -30,
+            tally: { key: 'restrain', trait: 'ascetic', need: 3,
+              story: 'ปฏิเสธค่ำคืนเช่นนี้มานับครั้งไม่ถ้วน' },
+            text: '{name}วางเงินไว้บนโต๊ะที่{place}แล้วเดินกลับเรือนคนเดียว' } },
+      ],
+    },
+
     /* ---- ได้ทันที: ภักดีต่อคู่ตน ---- */
     {
       id: 'traitM-devoted',

@@ -25,7 +25,7 @@
       heritable: 0.3,
       relates: ['devoted'],
       conflicts: ['freeHeart', 'openHeart'],
-      effects: { secret: 0.1, charm: 2, exposeRep: 1.4 },
+      effects: { secret: 0.1, charm: 2, exposeRep: 1.4, desire: 0.85 },
     },
     {
       id: 'freeHeart', label: 'หัวใจหลายดวง',
@@ -33,7 +33,7 @@
       heritable: 0.22,
       relates: ['openHeart', 'shameless'],
       conflicts: ['onlyOne', 'devoted'],
-      effects: { secret: 2.2, charm: 3 },
+      effects: { secret: 2.2, charm: 3, desire: 1.3 },
     },
     {
       id: 'openHeart', label: 'เปิดใจให้คู่ตน',
@@ -60,7 +60,7 @@
       desc: 'พอใจกับการเอาชนะใจคนที่มีเจ้าของแล้วมากกว่าคนที่ยังว่าง',
       relates: ['freeHeart', 'shameless'],
       conflicts: ['onlyOne'],
-      effects: { secret: 2.4, charm: 4, exposeRep: 1.2 },
+      effects: { secret: 2.4, charm: 4, exposeRep: 1.2, desire: 1.25 },
     },
   ]);
 })(typeof self !== 'undefined' ? self : this);

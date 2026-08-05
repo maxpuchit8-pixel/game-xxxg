@@ -19,7 +19,7 @@
       gender: 'female',
       heritable: 0.25,
       relates: ['radiantOne', 'freeHeart'],
-      effects: { charm: 6, marriagePull: 1.3, exposeRep: 0.6 },
+      effects: { charm: 6, marriagePull: 1.3, exposeRep: 0.6, desire: 1.25 },
     },
     {
       id: 'radiantOne', label: 'ดอกไม้ที่ผู้คนหมายปอง',
@@ -27,7 +27,7 @@
       gender: 'female',
       relates: ['limelight', 'freeHeart', 'openHeart'],
       conflicts: ['onlyOne'],
-      effects: { charm: 5, secret: 2.0, exposeRep: 0.5 },
+      effects: { charm: 5, secret: 2.0, exposeRep: 0.5, desire: 1.4 },
     },
     {
       id: 'eveningRose', label: 'กุหลาบยามสนธยา',
@@ -35,7 +35,7 @@
       gender: 'female',
       minAge: 35,
       relates: ['limelight', 'charmer'],
-      effects: { charm: 6, partnerAge: 8, marriagePull: 1.2 },
+      effects: { charm: 6, partnerAge: 8, marriagePull: 1.2, desire: 1.35 },
     },
     {
       id: 'ladyOfWill', label: 'สตรีผู้กุมบังเหียน',

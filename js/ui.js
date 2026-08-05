@@ -130,6 +130,22 @@
       const W = root.GameData.CHARM.weights;
       const pct = (w) => Math.round(w * 100) + '%';
       const parts = adult ? P.charmParts(p) : null;
+      // หลอดความต้องการ — เปิดเผยเมื่อโตเต็มวัยเหมือนค่าร่างกายอื่น
+      const D = root.GameData.DESIRE;
+      const dv = Math.round(p.desire || 0);
+      const dCls = dv >= D.peakAt ? 'peak' : (dv >= D.urgeAt ? 'urge' : '');
+      const desireBlock = (adult && p.alive)
+        ? `<div class="desire-row">
+             <div class="desire-head">
+               <span>ความต้องการ</span>
+               <b class="${dCls}">${dv} / 100 · ${P.desireTier(dv)}</b>
+             </div>
+             <div class="desire-bar"><i class="${dCls}" style="width:${Math.min(100, dv)}%"></i></div>
+           </div>
+           ${row('ไฟประจำตัว', `×${(p.libido || 1).toFixed(2)}`)}
+           ${row('ไต่ขึ้นเดือนละ', `+${P.desireRate(p).toFixed(1)}`)}`
+        : '';
+
       const charmBlock = adult
         ? row('คะแนนเสน่ห์', `${p.charm} / 100`) +
           row('ระดับ', `<span class="charm-tier">${P.charmTier(p.charm, p.gender)}</span>`) +
@@ -189,6 +205,15 @@
               <div class="kin-list">${kids.length ? kids.map(nameChip).join('') : '<span class="kin-none">ยังไม่มีบุตร</span>'}</div>
             </div>
           </section>
+
+          ${desireBlock ? `
+          <section class="detail-desire">
+            <h4>ความต้องการ</h4>
+            ${desireBlock}
+            <p class="detail-note">ไต่ขึ้นเองทุกเดือนตามไฟประจำตัว วัย และคุณลักษณะติดตัว
+              เต็มหลอดเมื่อใดต้องหาทางระบาย — หากคู่ครองไม่ตอบสนอง อาจไปหาทางอื่น
+              จนเกิดคุณลักษณะใหม่หรือความสัมพันธ์ลับ</p>
+          </section>` : ''}
 
           ${traitList.length ? `
           <section class="detail-traits">

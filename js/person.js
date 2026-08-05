@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  const { BODY, MEASURE, NAMES, CONFIG, POWER, CHARM } = root.GameData;
+  const { BODY, MEASURE, DESIRE, NAMES, CONFIG, POWER, CHARM } = root.GameData;
 
   /* ระบบคุณลักษณะติดตัว — อ่านตอนเรียกใช้ ไม่ใช่ตอนโหลด เพราะ trait/engine.js
      อาจโหลดทีหลัง และเผื่อกรณีทดสอบที่ไม่ได้โหลดคลัง trait มาด้วย */
@@ -413,6 +413,66 @@
   }
 
   /* ---------------------------------------------------------------------
+   * ความต้องการทางเพศ — หลอด 0–100 ที่ไต่ขึ้นเองทุกเดือน
+   * ไฟประจำตัว (libido) คงที่ทั้งชีวิต ส่วนอัตราไต่แปรตามวัยและ trait
+   * ------------------------------------------------------------------- */
+
+  function rollLibido() {
+    const L = DESIRE.libido;
+    return Math.round(randNormal(L.mean, L.sd, L.min, L.max) * 100) / 100;
+  }
+
+  /** ไฟประจำตัวของลูก อิงค่าเฉลี่ยพ่อแม่ตามสัดส่วน heredity */
+  function inheritLibido(father, mother) {
+    const parents = [father, mother].filter((p) => p && p.libido != null);
+    if (!parents.length) return rollLibido();
+    const L = DESIRE.libido;
+    const avg = parents.reduce((s, p) => s + p.libido, 0) / parents.length;
+    const h = DESIRE.heredity;
+    return Math.round(
+      clamp(avg * h + randNormal(L.mean, L.sd, L.min, L.max) * (1 - h), L.min, L.max) * 100) / 100;
+  }
+
+  function desireAgeFactor(age) {
+    let prev = 0;
+    for (const seg of DESIRE.curve) {
+      if (age < seg.until) {
+        const t = (age - prev) / (seg.until - prev);
+        return seg.from + (seg.to - seg.from) * t;
+      }
+      prev = seg.until;
+    }
+    return DESIRE.curve[DESIRE.curve.length - 1].to;
+  }
+
+  /**
+   * ความต้องการที่เพิ่มขึ้นในหนึ่งเดือน
+   * trait เป็นตัวคูณ คนที่มีคุณลักษณะเร้าหลายตัวจึงไต่เร็วกว่าแม้พ้นวัยเจริญพันธุ์
+   */
+  function desireRate(p) {
+    if (!p.alive || p.age < CONFIG.adultAge) return 0;
+    return DESIRE.perMonth * (p.libido || 1) * desireAgeFactor(p.age)
+      * traits().mul(p, 'desire');
+  }
+
+  /** ระบายความต้องการ — คืนค่าที่ลดลงจริง (kind: spouse | lover | alone) */
+  function relieve(p, kind) {
+    const r = DESIRE.relief[kind] || DESIRE.relief.alone;
+    const drop = r.lo + Math.random() * (r.hi - r.lo);
+    const before = p.desire || 0;
+    p.desire = Math.max(0, before - drop);
+    return Math.round(before - p.desire);
+  }
+
+  /** ระดับความต้องการเป็นคำ ใช้แสดงบนแผ่นข้อมูล */
+  function desireTier(v) {
+    if (v >= DESIRE.peakAt) return 'อดกลั้นไม่อยู่แล้ว';
+    if (v >= DESIRE.urgeAt) return 'กระสับกระส่าย';
+    if (v >= 35) return 'เริ่มร้อนรุ่ม';
+    return 'สงบนิ่ง';
+  }
+
+  /* ---------------------------------------------------------------------
    * รายได้ต่อเดือน — เด็กเป็นภาระ วัยทำงานหาได้ วัยชราหาได้น้อยลง
    * ------------------------------------------------------------------- */
   function incomeFor(person) {
@@ -452,6 +512,10 @@
       deathAge: null,
       traits: opts.traits || [],   // คุณลักษณะติดตัว ปกติเริ่มที่ 0 ตัว
       traitTally: {},              // ตัวนับพฤติกรรมสะสมก่อนติดเป็นนิสัย
+      // ไฟประจำตัวคงที่ทั้งชีวิต ส่วนหลอดความต้องการไต่ขึ้นเองทุกเดือน
+      libido: opts.libido != null ? opts.libido : rollLibido(),
+      desire: opts.desire != null ? opts.desire
+        : (opts.age >= CONFIG.adultAge ? Math.random() * DESIRE.startMax : 0),
       isFounder: !!opts.isFounder,   // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ป้ายอ้างอิงเฉยๆ)
     };
     refreshBust(p);   // หน้าอกสตรีตามวัย ณ ตอนสร้าง (คนนอกอาจเข้ามาตอนยังสาว)
@@ -505,6 +569,7 @@
       body,
       // ปกติเกิดมาไม่มี trait เลย แต่ถ้าพ่อแม่มีตัวที่สืบทอดได้ อาจติดมาแต่กำเนิด
       traits: traits().inherit(father, mother, gender),
+      libido: inheritLibido(father, mother),
       powerBase: inheritPowerBase(father, mother, body.buildId),
       charmBase: inheritFace(father, mother),
     });
@@ -566,6 +631,7 @@
     rollMeasure, inheritMeasure, measureLabel, cupLetter, applyMotherhood, refreshBust,
     rollPowerBase, inheritPowerBase, powerFor,
     rollFace, inheritFace, charmFor, charmTier, charmParts, shapeScore,
+    rollLibido, inheritLibido, desireRate, desireAgeFactor, relieve, desireTier,
     incomeFor, avatarSVG, randNormal, pick,
   };
 })(typeof self !== 'undefined' ? self : this);

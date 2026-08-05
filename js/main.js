@@ -466,6 +466,80 @@
   }
 
   /* ---------------------------------------------------------------------
+   * หลอดความต้องการ — ไต่ขึ้นเองทุกเดือนตามไฟประจำตัว วัย และคุณลักษณะ
+   * ถึงขีดสุดแล้วต้องหาทางระบาย ถ้าคู่ครองไม่ตอบสนองจะไปหาทางอื่น
+   * จนก่อคุณลักษณะใหม่หรือความสัมพันธ์ลับได้
+   * ------------------------------------------------------------------- */
+
+  const DESIRE = data.DESIRE;
+
+  const STRAY_TEXTS = [
+    '{name}นอนไม่หลับทั้งคืน ออกไปฝึกยุทธ์กลางลานจนฟ้าสางเพื่อข่มใจตนเอง',
+    '{name}ออกจากเรือนไปเดินเล่นกลางนครยามดึกโดยไม่บอกใครว่าไปไหน',
+    'ผู้คนเห็น{name}ยืนมองผู้อื่นนานผิดปกติ แล้วรีบหลบสายตาเมื่อถูกจับได้',
+  ];
+
+  /** ระบายกับคู่ครองหรือคู่ลับ แล้วบันทึกเบาๆ */
+  function relieveWith(p, other, kind) {
+    P.relieve(p, kind);
+    if (other) P.relieve(other, kind);
+    if (Math.random() < 0.25) {
+      ui.logEvent(kind === 'lover'
+        ? `${nm(p)}กับ${nm(other)}ลอบพบกันอีกครั้ง คืนนั้นยาวนานกว่าครั้งไหน`
+        : `${nm(p)}กับ${nm(other)}ใกล้ชิดกันเป็นพิเศษในเดือนนี้`,
+        kind === 'lover' ? 'secret' : 'event');
+    }
+  }
+
+  function rollDesire() {
+    lineage.living().forEach((p) => {
+      if (p.age < CONFIG.adultAge) return;
+      p.desire = Math.min(120, (p.desire || 0) + P.desireRate(p));
+      if (p.desire < DESIRE.peakAt) return;
+
+      // 1) คู่ครอง — ตอบสนองไหมขึ้นกับหลอดของอีกฝ่ายเองด้วย
+      const sp = p.spouseId ? lineage.get(p.spouseId) : null;
+      if (sp && sp.alive && sp.age >= CONFIG.adultAge) {
+        const willing = DESIRE.spouseWillingBase +
+          DESIRE.spouseWillingFromDesire * Math.min(1, (sp.desire || 0) / DESIRE.peakAt);
+        if (Math.random() < willing) { relieveWith(p, sp, 'spouse'); return; }
+      }
+
+      // 2) คู่ลับที่มีอยู่แล้ว
+      const lovers = lineage.secretsOf(p.id)
+        .filter((x) => x.alive && x.gender !== p.gender && x.age >= CONFIG.adultAge);
+      if (lovers.length) {
+        const lover = P.pick(lovers);
+        relieveWith(p, lover, 'lover');
+        tallyTrait(p, 'tryst', 'freeHeart', 4, 'พึ่งพาคนนอกเรือนจนเคยชิน');
+        return;
+      }
+
+      // 3) ไม่มีใครตอบสนอง — หาทางอื่นเอง แล้วอาจเปลี่ยนไปทั้งชีวิต
+      P.relieve(p, 'alone');
+      if (Math.random() < 0.4) {
+        ui.logEvent(P.pick(STRAY_TEXTS).split('{name}').join(nm(p)), 'event');
+      }
+      if (Math.random() < DESIRE.straySecretChance) {
+        const lover = makeSecretFor(p);
+        if (lover) {
+          ui.logEvent(
+            `${nm(p)}ทนความว้าวุ่นไม่ไหวจนไปหา${nm(lover)} — มีข่าวลือตามมาในเวลาไม่นาน`,
+            'secret');
+        }
+      }
+      if (Math.random() < DESIRE.strayTraitChance) {
+        const pool = p.gender === 'female'
+          ? ['limelight', 'freeHeart', 'radiantOne', 'ladyOfWill']
+          : ['wanderingBee', 'freeHeart', 'heartThief', 'lordOfWill'];
+        for (const id of pool) {
+          if (gainTrait(p, id, 'เก็บกดความต้องการไว้นานจนใจเปลี่ยนไปจากเดิม')) break;
+        }
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------------------
    * ชีวิตของคู่ลับ — แอบคบกันจริง: ลอบพบ ตั้งครรภ์บุตรลับ และถูกจับได้
    * ------------------------------------------------------------------- */
 
@@ -688,6 +762,8 @@
     if (w.minCup != null && (cup == null || cup < w.minCup)) return false;
     if (w.hasSpouse === true && !p.spouseId) return false;
     if (w.hasSpouse === false && p.spouseId) return false;
+    if (w.minDesire != null && (p.desire || 0) < w.minDesire) return false;
+    if (w.maxDesire != null && (p.desire || 0) > w.maxDesire) return false;
     // เงื่อนไขคุณลักษณะติดตัว — รับได้ทั้งชื่อเดียวและรายการ (ต้องมีอย่างน้อยหนึ่ง)
     const need = w.trait ? [].concat(w.trait) : null;
     if (need && !need.some((id) => T.has(p, id))) return false;
@@ -781,6 +857,9 @@
         (suffix.length ? ` (${suffix.join(' · ')})` : ''), 'event');
     }
 
+    // หลอดความต้องการ: ค่าลบคือได้ระบาย ค่าบวกคือยิ่งถูกเร้า
+    if (eff.desire) p.desire = Math.max(0, Math.min(120, (p.desire || 0) + eff.desire));
+
     // คุณลักษณะติดตัว: ได้ทันที (trait) หรือสะสมพฤติกรรมจนติดเป็นนิสัย (tally)
     if (eff.trait) {
       [].concat(eff.trait).forEach((id) => gainTrait(p, id, eff.traitStory));
@@ -804,8 +883,16 @@
     if (eff.child) eventChild(p, eff.child, partner);   // 'lover' สร้างคู่ลับให้เองถ้ายังไม่มี
   }
 
+  /** หลอดความต้องการที่สูงที่สุดในตระกูล ใช้เร่งความถี่ของอีเวนต์แนวนี้ */
+  function desirePressure() {
+    const top = lineage.living().reduce(
+      (m, p) => (p.age >= CONFIG.adultAge ? Math.max(m, p.desire || 0) : m), 0);
+    return 1 + (DESIRE.eventBoostMax - 1) * Math.min(1, top / DESIRE.peakAt);
+  }
+
   function rollAppearanceEvent() {
-    const chance = CONFIG.appearanceEventChance * (1 + appearanceDrought * CONFIG.eventRampPerMonth);
+    const chance = CONFIG.appearanceEventChance
+      * (1 + appearanceDrought * CONFIG.eventRampPerMonth) * desirePressure();
     if (Math.random() >= chance) { appearanceDrought++; return; }
     if (!lineage.living().some((p) => p.isBlood)) return;
 
@@ -875,6 +962,7 @@
     rollMarriages();
     rollBirths();
     rollDeaths();
+    rollDesire();
     rollSecrets();
     rollSecretLife();
     rollAmbient();
