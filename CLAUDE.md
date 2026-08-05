@@ -55,7 +55,12 @@ for (const f of ['data.js', 'scenario-engine.js', 'person.js', 'lineage.js', 'st
 `root.GameData` **ตอนโหลดไฟล์** ไม่ใช่ตอนเรียกใช้ ดังนั้น `data.js` ต้องมาก่อนเสมอ
 สลับลำดับ `<script>` ใน `index.html` แล้วเกมจะพังทันทีด้วย TypeError ที่อ่านไม่รู้เรื่อง
 
-ลำดับปัจจุบัน: `data → js/events/*.js → scenario-engine → person → lineage → clock → state → viewport → ui → tree-layout → tree-ui → main`
+ลำดับปัจจุบัน: `data → js/trait/*.js → js/events/*.js → scenario-engine → person → lineage → clock → state → viewport → ui → tree-layout → tree-ui → main`
+
+โฟลเดอร์ `js/trait/` คือระบบคุณลักษณะติดตัว (`engine.js` ต้องมาก่อน `traits-*.js`)
+ทุกไฟล์ `traits-*.js` ลงทะเบียนเข้า `root.TraitDefs` เดียวกัน ตัวเครื่องอยู่ที่ `root.Traits`
+`person.js` เรียกผ่านฟังก์ชัน `traits()` ตอนใช้งาน ไม่ destructure ตอนโหลด จึงทดสอบ
+โดยไม่โหลดคลัง trait ก็ได้ จุดปล่อย trait ทั้งหมดอยู่ใน main.js (`gainTrait` / `tallyTrait`)
 
 โฟลเดอร์ `js/events/` คือคลังอีเวนต์ที่ผู้ใช้แก้เองได้ ทุกไฟล์ลงทะเบียนเทมเพลตเข้า
 `root.EventTemplates` เดียวกัน ไม่พึ่ง GameData ตอนโหลด — คู่มือการเขียนอยู่หัวไฟล์

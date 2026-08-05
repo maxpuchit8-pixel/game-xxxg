@@ -26,6 +26,7 @@
   const data = window.GameData;
   const { CONFIG, CHOICE_EVENTS, ENGINE_CONTENT } = data;
   const P = window.Person;
+  const T = window.Traits;   // ระบบคุณลักษณะติดตัว (js/trait/)
 
   const engine = new window.ScenarioEngine();
 
@@ -132,6 +133,54 @@
     `พลังยุทธ์ ${p.power} เสน่ห์ ${p.charm} (${P.charmTier(p.charm, p.gender)})`;
 
   /* ---------------------------------------------------------------------
+   * คุณลักษณะติดตัว (trait)
+   * นิยามอยู่ใน js/trait/ ตรงนี้เป็นแค่จุดปล่อยและการบันทึกจดหมายเหตุ
+   * ------------------------------------------------------------------- */
+
+  /** มอบ trait พร้อมบันทึก คืน true เมื่อได้จริง */
+  function gainTrait(p, id, story) {
+    const def = T.give(p, id);
+    if (!def) return false;
+    p.charm = P.charmFor(p);
+    p.power = P.powerFor(p);
+    ui.logEvent(
+      `${nm(p)}${story || 'เปลี่ยนไปจากเดิม'} — ได้คุณลักษณะ「${def.label}」`,
+      'milestone');
+    return true;
+  }
+
+  /** สุ่มมอบ trait ตามโอกาส คืน true เมื่อได้จริง */
+  function rollTrait(p, id, chance, story) {
+    if (!T.canGain(p, T.byId(id))) return false;
+    if (Math.random() >= chance) return false;
+    return gainTrait(p, id, story);
+  }
+
+  /** นับพฤติกรรมสะสม ครบเกณฑ์แล้วจึงติดเป็นนิสัยถาวร */
+  function tallyTrait(p, key, id, need, story) {
+    const def = T.tally(p, key, id, need);
+    if (!def) return false;
+    p.charm = P.charmFor(p);
+    p.power = P.powerFor(p);
+    ui.logEvent(
+      `${nm(p)}${story || 'ทำเช่นนี้จนติดเป็นนิสัย'} — ได้คุณลักษณะ「${def.label}」`,
+      'milestone');
+    return true;
+  }
+
+  /** สุ่มเลือกหนึ่งคนโดยถ่วงน้ำหนัก ใช้ให้ trait มีผลต่อ "ใครจะเป็นคนเริ่มเรื่อง" */
+  function pickWeighted(list, weightOf) {
+    const w = list.map((x) => Math.max(0.001, weightOf(x)));
+    const total = w.reduce((s, v) => s + v, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < list.length; i++) {
+      r -= w[i];
+      if (r <= 0) return list[i];
+    }
+    return list[list.length - 1];
+  }
+
+  /* ---------------------------------------------------------------------
    * คิวการตัดสินใจ
    * เข้าคิวไว้ก่อน แล้ว pump ทีละเรื่องตอนจบ tick — ระหว่างนั้นเวลาหยุดสนิท
    * cfg.autoValue คือคำตอบที่ระบบจะเลือกให้เมื่ออยู่ในโหมดอัตโนมัติหรือคิวท่วม
@@ -202,6 +251,10 @@
       P.refreshBust(p);          // หน้าอกสตรีโตตามวัยจนเต็มศักยภาพพันธุกรรม
       p.power = P.powerFor(p);   // พลังยุทธ์ขึ้นลงตามวัย
       p.charm = P.charmFor(p);   // เสน่ห์พีคช่วงวัยหนุ่มสาวแล้วถดถอย
+      // เสาหลักของเรือน — ผู้ใหญ่ที่มีลูกหลานให้ดูแลและอยู่กับตระกูลมานาน
+      if (p.age === 34 && p.childIds.length >= 2) {
+        rollTrait(p, 'houseKeeper', 0.5, 'กลายเป็นที่พึ่งของคนทั้งเรือน');
+      }
       if (p.age === CONFIG.adultAge) {
         structureDirty = true;
         ui.logEvent(`${nm(p)}เติบโตเป็นผู้ใหญ่เต็มตัว — ${bodyWord(p)}`, 'milestone');
@@ -229,10 +282,13 @@
       // เสน่ห์สูงทำให้มีผู้มาทาบทามบ่อยขึ้น และดึงดูดคนที่ดีกว่า
       const cr = data.CHARM.marriageChanceRange;
       const pull = cr.lo + (cr.hi - cr.lo) * Math.min(1, (p.charm || 0) / 100);
-      if (Math.random() >= CONFIG.marriageChancePerMonth * pull) return;
+      if (Math.random() >= CONFIG.marriageChancePerMonth * pull * T.mul(p, 'marriagePull')) return;
 
       const partnerGender = p.gender === 'male' ? 'female' : 'male';
-      const partner = P.createOutsider(partnerGender, p.age, p.charm);
+      // trait บางตัวขยายช่วงอายุคู่ครองที่รับได้ (เช่นต้องมนต์ผู้อาวุโสกว่า)
+      const skew = T.sum(p, 'partnerAge');
+      const partner = P.createOutsider(
+        partnerGender, p.age + (skew ? Math.round((Math.random() * 2 - 1) * skew) : 0), p.charm);
 
       ask({
         kind: 'marriage',
@@ -264,6 +320,10 @@
     baby.age = 0;
     linkBlood(baby);
     structureDirty = true;
+    // ให้กำเนิดครบสามคน = สายเลือดอุดมสมบูรณ์จริง (trait นี้สืบทอดต่อได้)
+    if (mother.childIds.length >= 3) {
+      rollTrait(mother, 'fertileLine', 0.5, 'ให้กำเนิดทายาทได้ครบถ้วนสมบูรณ์');
+    }
     if (secret) {
       const husband = mother.spouseId ? lineage.get(mother.spouseId) : null;
       if (husband) {
@@ -307,7 +367,7 @@
       const mother = p.gender === 'female' ? p : spouse;
       if (mother.age < CONFIG.fertileMin || mother.age > CONFIG.fertileMax) return;
       if (mother.childIds.length >= CONFIG.maxChildren) return;
-      if (Math.random() >= CONFIG.birthChancePerMonth) return;
+      if (Math.random() >= CONFIG.birthChancePerMonth * T.mul(mother, 'fertility')) return;
 
       const count = mother.childIds.length;
       ask({
@@ -357,6 +417,13 @@
               .split('{age}').join(p.deathAge),
         'death'
       );
+
+      // คู่ครองที่เหลืออยู่บางคนไม่เหมือนเดิมอีกเลย
+      const widow = p.spouseId ? lineage.get(p.spouseId) : null;
+      if (widow && widow.alive) {
+        rollTrait(widow, 'heartbroken', T.has(widow, 'devoted') ? 0.75 : 0.4,
+          `สูญเสีย${nm(p)}ไปตลอดกาล`);
+      }
     });
   }
 
@@ -375,7 +442,8 @@
     const adults = lineage.living().filter((p) => p.age >= CONFIG.adultAge);
     if (adults.length < 2) return;
 
-    const a = P.pick(adults);
+    // trait สายหลายใจทำให้ถูกเลือกเป็นคนเริ่มเรื่องบ่อยกว่า สายรักเดียวใจเดียวแทบไม่เลย
+    const a = pickWeighted(adults, (x) => T.mul(x, 'secret'));
     const candidates = adults.filter((b) =>
       b.id !== a.id &&
       b.gender !== a.gender &&              // ความสัมพันธ์ลับมีเฉพาะชายกับหญิง
@@ -386,7 +454,9 @@
     );
     if (!candidates.length) return;
 
-    const b = P.pick(candidates);
+    // ผู้ช่วงชิงดวงใจเล็งคนที่มีคู่แล้วเป็นพิเศษ ส่วนคนภักดีแทบไม่ถูกชวน
+    const b = pickWeighted(candidates, (x) =>
+      T.mul(x, 'secret') * (T.has(a, 'heartThief') && x.spouseId ? 3 : 1));
     lineage.addSecret(a.id, b.id, game.state.month);
     structureDirty = true;
     ui.logEvent(
@@ -414,11 +484,15 @@
       const mother = a.gender === 'female' ? a : b;
       if (father.gender === mother.gender) return;
 
-      // ฉากลอบพบกัน — สีสันบรรยากาศ ไม่มีผลต่อตัวเลข
-      if (Math.random() < CONFIG.secretMeetChance) {
+      // ฉากลอบพบกัน — สีสันบรรยากาศ และเป็นพฤติกรรมสะสมที่ก่อ trait ได้
+      const pairSecret = (T.mul(a, 'secret') + T.mul(b, 'secret')) / 2;
+      if (Math.random() < CONFIG.secretMeetChance * pairSecret) {
         ui.logEvent(
           P.pick(SECRET_MEET_TEXTS).split('{a}').join(nm(a)).split('{b}').join(nm(b)),
           'secret');
+        // ลอบพบกันจนชิน — ฝ่ายที่ทำซ้ำๆ ค่อยๆ กลายเป็นคนหลายใจ
+        [a, b].forEach((x) => tallyTrait(x, 'tryst', 'freeHeart', 4,
+          'ลอบพบผู้อื่นจนความลับกลายเป็นเรื่องคุ้นเคย'));
       }
 
       // ตั้งครรภ์บุตรลับ — ต้องมีฝ่ายสายเลือด (ลูกถึงมีที่ยืนในผัง) และแม่เจริญพันธุ์
@@ -448,11 +522,36 @@
       // ความลับแตก — เสียชื่อเสียงครั้งเดียวต่อคู่ แล้วกลายเป็นเรื่องซุบซิบประจำนคร
       if (!r.exposed && Math.random() < CONFIG.secretExposeChancePerMonth) {
         r.exposed = true;
-        game.addReputation(CONFIG.secretExposeRep);
+        // คนที่ไม่แคร์สายตาชาวนครทำให้เรื่องเสียหายน้อยลง คนที่ยึดชื่อเสียงยิ่งเจ็บหนัก
+        const repMul = (T.mul(a, 'exposeRep') + T.mul(b, 'exposeRep')) / 2;
+        const rep = Math.round(CONFIG.secretExposeRep * repMul);
+        game.addReputation(rep);
         ui.logEvent(
           `ความลับแตก! ผู้คนจับได้ว่า${nm(a)}กับ${nm(b)}ลอบคบหากัน ` +
-          `ตระกูลตกเป็นขี้ปากทั้งนคร (ชื่อเสียง ${CONFIG.secretExposeRep})`,
+          `ตระกูลตกเป็นขี้ปากทั้งนคร (ชื่อเสียง ${rep})`,
           'secret');
+
+        // ตัวคู่ลับเองเริ่มชาชินกับคำนินทา
+        [a, b].forEach((x) => rollTrait(x, 'shameless', 0.5,
+          'ตกเป็นขี้ปากชาวนครจนคำนินทาไม่ระคายอีกต่อไป'));
+
+        // ฝ่ายที่เห็นคู่ครองตนไปมีผู้อื่น — ใจเปลี่ยนไปคนละทางตามนิสัยเดิม
+        [a, b].forEach((x) => {
+          const sp = x.spouseId ? lineage.get(x.spouseId) : null;
+          if (!sp || !sp.alive) return;
+          if (T.has(sp, 'openHeart')) {
+            ui.logEvent(
+              `${nm(sp)}รู้เรื่องของ${nm(x)}แต่กลับนิ่งเฉย — ใจที่เปิดกว้างไว้แต่แรกไม่สั่นไหว`,
+              'secret');
+            return;
+          }
+          if (gainTrait(sp, 'takenHeart', `รู้ว่า${nm(x)}มีผู้อื่นในใจ`)) {
+            rollTrait(sp, 'jealous', 0.55, 'เฝ้าระแวงคนของตนนับแต่วันนั้น');
+            rollTrait(sp, 'vengeful', 0.3, 'เก็บความแค้นครั้งนั้นไว้ไม่ลืมเลือน');
+          } else {
+            rollTrait(sp, 'openHeart', 0.25, 'ทำใจยอมรับได้ว่าหัวใจคนห้ามกันไม่ได้');
+          }
+        });
       }
     });
   }
@@ -589,6 +688,11 @@
     if (w.minCup != null && (cup == null || cup < w.minCup)) return false;
     if (w.hasSpouse === true && !p.spouseId) return false;
     if (w.hasSpouse === false && p.spouseId) return false;
+    // เงื่อนไขคุณลักษณะติดตัว — รับได้ทั้งชื่อเดียวและรายการ (ต้องมีอย่างน้อยหนึ่ง)
+    const need = w.trait ? [].concat(w.trait) : null;
+    if (need && !need.some((id) => T.has(p, id))) return false;
+    const ban = w.notTrait ? [].concat(w.notTrait) : null;
+    if (ban && ban.some((id) => T.has(p, id))) return false;
     return true;
   }
 
@@ -675,6 +779,15 @@
     if (eff.text) {
       ui.logEvent(fillAppearance(eff.text, p, place, tokens) +
         (suffix.length ? ` (${suffix.join(' · ')})` : ''), 'event');
+    }
+
+    // คุณลักษณะติดตัว: ได้ทันที (trait) หรือสะสมพฤติกรรมจนติดเป็นนิสัย (tally)
+    if (eff.trait) {
+      [].concat(eff.trait).forEach((id) => gainTrait(p, id, eff.traitStory));
+    }
+    if (eff.tally) {
+      [].concat(eff.tally).forEach((t) =>
+        tallyTrait(p, t.key || t.trait, t.trait, t.need, t.story));
     }
 
     if (eff.secretWithPartner && partner) {

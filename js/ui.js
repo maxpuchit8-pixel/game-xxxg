@@ -111,6 +111,7 @@
       const secrets = lineage.secretsOf(p.id);
       // ความจริงที่ตัวละครไม่รู้ แต่ผู้เล่นเห็น: พ่อแท้จริงของบุตรลับ
       // และรายชื่อลูกที่ชู้รักไม่รู้ว่าเป็นเลือดเนื้อของตน
+      const traitList = root.Traits ? root.Traits.listOf(p) : [];
       const trueFather = p.trueFatherId ? lineage.get(p.trueFatherId) : null;
       const hiddenKids = lineage.all().filter((k) => k.trueFatherId === p.id);
       const adult = p.age >= CONFIG.adultAge;
@@ -188,6 +189,17 @@
               <div class="kin-list">${kids.length ? kids.map(nameChip).join('') : '<span class="kin-none">ยังไม่มีบุตร</span>'}</div>
             </div>
           </section>
+
+          ${traitList.length ? `
+          <section class="detail-traits">
+            <h4>คุณลักษณะติดตัว (${traitList.length})</h4>
+            <div class="trait-list">
+              ${traitList.map((t) =>
+                `<span class="trait-chip" title="${t.desc}">${t.label}</span>`).join('')}
+            </div>
+            ${traitList.map((t) =>
+              `<p class="detail-note trait-desc"><b>${t.label}</b> — ${t.desc}</p>`).join('')}
+          </section>` : ''}
 
           ${(secrets.length || hiddenKids.length) ? `
           <section class="detail-secret">

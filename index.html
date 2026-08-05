@@ -86,12 +86,20 @@
 
   <!-- ลำดับโหลดสำคัญ: ข้อมูล -> เอนจิน -> ตัวละคร -> ผัง -> นาฬิกา -> สถานะ -> UI -> ตัวประสาน -->
   <script src="js/data.js"></script>
+  <!-- คลังคุณลักษณะติดตัว (trait) ที่ผู้ใช้แก้เองได้ — engine ต้องมาก่อน traits-* -->
+  <script src="js/trait/engine.js"></script>
+  <script src="js/trait/traits-common.js"></script>
+  <script src="js/trait/traits-bond.js"></script>
+  <script src="js/trait/traits-female.js"></script>
+  <script src="js/trait/traits-male.js"></script>
   <!-- คลังอีเวนต์ที่ผู้ใช้แก้เองได้ ทุกไฟล์ลงทะเบียนเข้า EventTemplates เดียวกัน -->
   <script src="js/events/appearance.js"></script>
   <script src="js/events/secret-inlaw-female.js"></script>
   <script src="js/events/secret-inlaw-male.js"></script>
   <script src="js/events/flirt-female.js"></script>
   <script src="js/events/flirt-male.js"></script>
+  <script src="js/events/trait-female.js"></script>
+  <script src="js/events/trait-male.js"></script>
   <script src="js/scenario-engine.js"></script>
   <script src="js/person.js"></script>
   <script src="js/lineage.js"></script>

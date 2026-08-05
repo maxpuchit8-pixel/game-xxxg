@@ -433,6 +433,17 @@ main {
 .kin-dot.female { background: var(--female); }
 .kin-age { color: var(--ink-dim); font-size: 11px; }
 .kin-none { color: var(--ink-dim); font-size: 12.5px; }
+/* คุณลักษณะติดตัวในแผ่นข้อมูล */
+.detail-traits { margin-top: 14px; }
+.detail-traits h4 { color: var(--jade); border-bottom-color: var(--jade); }
+.trait-list { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px; }
+.trait-chip {
+  font-size: 12.5px; font-weight: 700; color: var(--jade);
+  background: var(--surface-2); border: 1px solid var(--jade);
+  border-radius: 999px; padding: 2px 10px;
+}
+.trait-desc { margin: 2px 0; }
+.trait-desc b { color: var(--jade); font-weight: 700; }
 /* ความสัมพันธ์ลับในแผ่นข้อมูล */
 .detail-secret { margin-top: 14px; }
 .detail-secret h4 { color: var(--female); border-bottom-color: var(--female); }

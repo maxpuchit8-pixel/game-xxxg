@@ -16,6 +16,12 @@
 
   const { BODY, MEASURE, NAMES, CONFIG, POWER, CHARM } = root.GameData;
 
+  /* ระบบคุณลักษณะติดตัว — อ่านตอนเรียกใช้ ไม่ใช่ตอนโหลด เพราะ trait/engine.js
+     อาจโหลดทีหลัง และเผื่อกรณีทดสอบที่ไม่ได้โหลดคลัง trait มาด้วย */
+  function traits() {
+    return root.Traits || { sum: () => 0, mul: () => 1, inherit: () => [] };
+  }
+
   let _seq = 0;
   function nextId() { return 'p' + (++_seq); }
 
@@ -302,10 +308,10 @@
     return POWER.curve[POWER.curve.length - 1].to;
   }
 
-  /** พลังยุทธ์ที่แสดงจริง ณ อายุปัจจุบัน */
+  /** พลังยุทธ์ที่แสดงจริง ณ อายุปัจจุบัน (คูณผลจากคุณลักษณะติดตัว) */
   function powerFor(p) {
     if (!p.alive) return 0;
-    return Math.round(p.powerBase * ageFactor(p.age));
+    return Math.round(p.powerBase * ageFactor(p.age) * traits().mul(p, 'power'));
   }
 
   /* ---------------------------------------------------------------------
@@ -395,7 +401,8 @@
     const c = charmParts(p);
     // หน้าตากับสัดส่วนโรยราตามวัย สุขภาพและท่วงท่าแปรตามค่าปัจจุบันอยู่แล้ว
     const looks = (c.face * W.face + c.shape * W.shape) * charmAgeFactor(p.age);
-    return Math.round(clamp(looks + c.health * W.health + c.poise * W.poise, 0, 100));
+    return Math.round(clamp(
+      looks + c.health * W.health + c.poise * W.poise + traits().sum(p, 'charm'), 0, 100));
   }
 
   /** ชื่อระดับเสน่ห์ตามคะแนนและเพศ */
@@ -443,6 +450,8 @@
       childIds: [],
       alive: true,
       deathAge: null,
+      traits: opts.traits || [],   // คุณลักษณะติดตัว ปกติเริ่มที่ 0 ตัว
+      traitTally: {},              // ตัวนับพฤติกรรมสะสมก่อนติดเป็นนิสัย
       isFounder: !!opts.isFounder,   // ตัวละครที่ผู้เล่นเริ่มเกมด้วย (ป้ายอ้างอิงเฉยๆ)
     };
     refreshBust(p);   // หน้าอกสตรีตามวัย ณ ตอนสร้าง (คนนอกอาจเข้ามาตอนยังสาว)
@@ -494,6 +503,8 @@
       fatherId: father.id,
       motherId: mother.id,
       body,
+      // ปกติเกิดมาไม่มี trait เลย แต่ถ้าพ่อแม่มีตัวที่สืบทอดได้ อาจติดมาแต่กำเนิด
+      traits: traits().inherit(father, mother, gender),
       powerBase: inheritPowerBase(father, mother, body.buildId),
       charmBase: inheritFace(father, mother),
     });
