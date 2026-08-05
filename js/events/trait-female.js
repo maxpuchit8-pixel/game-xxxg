@@ -88,8 +88,12 @@
             text: 'ไฟที่{place}ดับลงทีละดวง และไม่มีใครเห็น{name}กลับเรือนคืนนั้น' } },
         { label: 'ปฏิเสธแต่ยังเดินต่อ', value: 'tease', note: 'หลอดลดเล็กน้อย · ทำบ่อยเข้าจะติดเป็นนิสัย', tone: 'accept',
           effect: { desire: -25,
-            tally: { key: 'display', trait: 'radiantOne', need: 3,
-              story: 'พอใจกับการเป็นสิ่งที่ผู้คนอยากได้แต่ไม่มีวันได้' },
+            tally: [
+              { key: 'display', trait: 'radiantOne', need: 3,
+                story: 'พอใจกับการเป็นสิ่งที่ผู้คนอยากได้แต่ไม่มีวันได้' },
+              { key: 'bait', trait: 'temptress', need: 3,
+                story: 'ล่อให้ผู้อื่นเอ่ยขอแล้วปฏิเสธจนกลายเป็นความเคยชิน' },
+            ],
             text: '{name}ส่ายหน้าให้{stranger}แล้วเดินต่ออย่างช้าๆ รู้ดีว่าเขายังมองตามอยู่' } },
         { label: 'คลุมผ้ากลับเรือนทันที', value: 'home', note: 'ไม่มีอะไรเกิดขึ้น', tone: 'decline',
           effect: { text: '{name}ดึงผ้าคลุมขึ้นปิดไหล่แล้วเร่งฝีเท้ากลับจาก{place}' } },
@@ -109,8 +113,12 @@
       options: [
         { label: 'ยืนรับสายตาเหล่านั้นจนถึงที่สุด', value: 'bask', note: 'ได้ระบาย · ชื่อเสียง +2 · ทำบ่อยเข้าจะติดเป็นนิสัย', tone: 'accept',
           effect: { desire: -55, rep: 2,
-            tally: { key: 'display', trait: 'radiantOne', need: 2,
-              story: 'ค้นพบว่าเพียงถูกจับจ้องก็เพียงพอแล้วสำหรับนาง' },
+            tally: [
+              { key: 'display', trait: 'radiantOne', need: 2,
+                story: 'ค้นพบว่าเพียงถูกจับจ้องก็เพียงพอแล้วสำหรับนาง' },
+              { key: 'bait', trait: 'temptress', need: 2,
+                story: 'จงใจล่อสายตาทั้งงานแล้วพอใจกับผลที่ตามมา' },
+            ],
             text: '{name}ยืนอยู่กลาง{place}จนดนตรีหยุด — ค่ำคืนนั้นเป็นของนางคนเดียว' } },
         { label: 'หลบไปตั้งสติที่ระเบียง', value: 'retreat', note: 'หลอดลดเล็กน้อย', tone: 'decline',
           effect: { desire: -20,
@@ -132,11 +140,17 @@
       options: [
         { label: 'อนุญาต', value: 'allow', note: 'ได้ระบาย · ทำบ่อยเข้าจะติดเป็นนิสัย',
           effect: { desire: -60,
-            tally: { key: 'display', trait: 'radiantOne', need: 2,
-              story: 'ยอมให้ผู้อื่นได้ในสิ่งที่ขอ แล้วพบว่าตนพอใจกับอำนาจนั้น' },
+            tally: [
+              { key: 'display', trait: 'radiantOne', need: 2,
+                story: 'ยอมให้ผู้อื่นได้ในสิ่งที่ขอ แล้วพบว่าตนพอใจกับอำนาจนั้น' },
+              { key: 'bait', trait: 'temptress', need: 2,
+                story: 'ล่อให้ผู้อื่นเป็นฝ่ายเอ่ยขอครั้งแล้วครั้งเล่า' },
+            ],
             text: '{name}พยักหน้าให้{stranger}ที่{place} — ไม่มีใครรู้ว่าเกิดอะไรขึ้นหลังจากนั้น' } },
-        { label: 'ไม่อนุญาต', value: 'refuse', note: 'ชื่อเสียง +2', tone: 'decline',
+        { label: 'ไม่อนุญาต แต่พอใจที่เขาต้องเอ่ยขอ', value: 'refuse', note: 'ชื่อเสียง +2 · ทำบ่อยเข้าจะติดเป็นนิสัย', tone: 'decline',
           effect: { rep: 2,
+            tally: { key: 'bait', trait: 'temptress', need: 2,
+              story: 'สนุกกับการเป็นผู้ตัดสินคำตอบมากกว่าตัวคำตอบเสียอีก' },
             text: '{name}ปฏิเสธ{stranger}อย่างเรียบๆ แล้วเดินกลับเข้างานโดยไม่หันไปมองอีก' } },
       ],
     },
@@ -157,8 +171,12 @@
           /* มี chance แล้วระบบจะใช้เฉพาะก้อน success/fail — ค่าอื่นต้องอยู่ในสองก้อนนั้น */
           effect: { chance: 0.5,
             success: { secret: true, desire: -90, rep: -1,
-              tally: { key: 'display', trait: 'radiantOne', need: 2,
-                story: 'ค้นพบว่าความลับกลางฝูงชนคือสิ่งที่นางโหยหา' },
+              tally: [
+                { key: 'display', trait: 'radiantOne', need: 2,
+                  story: 'ค้นพบว่าความลับกลางฝูงชนคือสิ่งที่นางโหยหา' },
+                { key: 'bait', trait: 'temptress', need: 2,
+                  story: 'ส่งสัญญาณให้ผู้อื่นเป็นฝ่ายเข้ามาจนกลายเป็นความเคยชิน' },
+              ],
               text: 'ท่ามกลางผู้คนทั้ง{place} {name}ต้องกัดริมฝีปากไว้ไม่ให้เสียงใดหลุดออกมา — ไม่มีใครรอบตัวรู้อะไรเลย' },
             fail: { desire: -70,
               text: 'ดนตรีที่{place}เปลี่ยนจังหวะ ฝูงชนพัดพาทั้งสองแยกจากกันก่อนสิ่งใดจะเกิดขึ้น' } } },
@@ -195,6 +213,55 @@
           effect: { rep: 3, text: '{name}สนทนากับทุกคนอย่างมีชั้นเชิงแล้วกลับเรือนก่อนดึก' } },
         { label: 'ฉีกบัตรเชิญทิ้ง', value: 'skip', note: 'ไม่ไปเสียเลย', tone: 'decline',
           effect: { text: '{name}ฉีกบัตรเชิญทิ้งโดยไม่คิดจะถามว่าใครเป็นผู้ส่ง' } },
+      ],
+    },
+
+    /* ---- ยั่วยวนเป็นนิสัย: วางกับดักไว้แล้วรอให้อีกฝ่ายเดินเข้ามาเอง ---- */
+    {
+      id: 'traitF-set-the-bait',
+      when: { gender: 'female', blood: true, trait: 'temptress', maxAge: 48 },
+      traitAffinity: ['temptress', 'radiantOne', 'limelight', 'ardent'],
+      partner: 'stranger',
+      places: ['โรงน้ำชาเขตกลาง', 'งานเลี้ยงสภานคร', 'ตลาดแสงจันทร์'],
+      title: '{name}วางกับดักไว้ที่{place}',
+      text: '{name}เลือกที่นั่ง เลือกมุมแสง และเลือกจังหวะหันมองไว้หมดแล้วที่{place} ' +
+            'อีกไม่นาน{stranger}ก็เดินเข้ามาเอ่ยปากตามที่นางคาดไว้ทุกประการ ' +
+            'ส่วนที่นางไม่ได้วางแผนไว้คือคำตอบของตัวเอง',
+      options: [
+        { label: 'ตอบรับ', value: 'yes', note: 'ได้ระบายเต็มที่ · เกิดความสัมพันธ์ลับ',
+          effect: { desire: -85, secret: true, rep: -1,
+            text: '{name}ตอบรับ{stranger}ที่{place}ราวกับตัดสินใจไว้ตั้งแต่ก่อนเขาจะเอ่ย' } },
+        { label: 'ปฏิเสธหลังปล่อยให้เขาพูดจนจบ', value: 'no', note: 'ชื่อเสียง +2 · หลอดลดเล็กน้อย', tone: 'decline',
+          effect: { rep: 2, desire: -22,
+            text: '{name}ฟัง{stranger}พูดจนจบแล้วส่ายหน้า — นางได้สิ่งที่ต้องการไปแล้วตั้งแต่เขาเอ่ยประโยคแรก' } },
+      ],
+    },
+
+    /* ---- ยั่วยวนเป็นนิสัย: กับดักที่บานปลายเกินคาด ----
+       ผลไม่ได้อยู่ในมือนางทั้งหมด แต่คำตัดสินสุดท้ายยังเป็นของนางเสมอ */
+    {
+      id: 'traitF-bait-backfire',
+      when: { gender: 'female', blood: true, trait: 'temptress', minDesire: 55, maxAge: 48 },
+      traitAffinity: ['temptress', 'radiantOne', 'ardent'],
+      partner: 'stranger',
+      group: [2, 3],
+      places: ['โรงเตี๊ยมชายขอบนคร', 'ลานมหรสพที่แน่นขนัด'],
+      title: 'กับดักของ{name}ได้ผลเกินคาด',
+      text: 'ที่{place} {name}เล่นบทเดิมที่เคยได้ผลมาตลอด แต่คราวนี้มีถึง {count} คน ' +
+            '({strangers}) เดินเข้ามาพร้อมกัน ทุกคนพูดจาสุภาพ แต่ก็ไม่มีใครยอมถอยให้ใคร ' +
+            'เป็นครั้งแรกที่นางรู้สึกว่าจังหวะไม่ได้อยู่ในมือตัวเองทั้งหมด',
+      options: [
+        { label: 'เลือก{stranger}แล้วให้ที่เหลือกลับไป', value: 'pick', note: 'ได้ระบาย · เกิดความสัมพันธ์ลับ · กลับมาคุมเกมได้',
+          effect: { desire: -80, secret: true,
+            text: '{name}ชี้ไปที่{stranger}เพียงคนเดียว ที่เหลือที่{place}ก็แยกย้ายไปโดยไม่มีใครกล้าโต้' } },
+        { label: 'ถอนตัวออกมาก่อนเรื่องจะเกินคุม', value: 'out', note: 'ชื่อเสียง +1 · เข็ดจนอาจเปลี่ยนนิสัย', tone: 'decline',
+          effect: { rep: 1, desire: -25,
+            tally: { key: 'restrain', trait: 'ascetic', need: 4,
+              story: 'เจอกับดักของตัวเองย้อนกลับมาจนเรียนรู้ที่จะข่มใจ' },
+            text: '{name}เดินออกจาก{place}กลางวงสนทนา — คืนนั้นนางนอนคิดอยู่นานว่าเกือบเกินเลยไปแค่ไหน' } },
+        { label: 'เรียกคนของตระกูลมารับ', value: 'guard', note: 'ปลอดภัยไว้ก่อน · ชื่อเสียง +2', tone: 'decline',
+          effect: { rep: 2, desire: -15,
+            text: 'คนของตระกูลมาถึง{place}ในไม่ช้า วงที่ล้อม{name}อยู่ก็สลายไปเงียบๆ' } },
       ],
     },
 

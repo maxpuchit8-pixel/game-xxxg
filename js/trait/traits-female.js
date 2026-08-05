@@ -30,6 +30,15 @@
       effects: { charm: 5, secret: 2.0, exposeRep: 0.5, desire: 1.4 },
     },
     {
+      id: 'temptress', label: 'ยั่วยวนเป็นนิสัย',
+      desc: 'จงใจล่อให้อีกฝ่ายเป็นผู้เอ่ยก่อนเสมอ แล้วพอใจกับอำนาจที่ได้ตัดสินคำตอบเอง',
+      gender: 'female',
+      heritable: 0.22,
+      relates: ['limelight', 'radiantOne', 'freeHeart', 'ardent'],
+      conflicts: ['onlyOne'],
+      effects: { charm: 5, secret: 2.3, desire: 1.35, marriagePull: 1.3, exposeRep: 0.7 },
+    },
+    {
       id: 'eveningRose', label: 'กุหลาบยามสนธยา',
       desc: 'ยิ่งอายุมากยิ่งงามลึกซึ้ง ชายหนุ่มรุ่นหลังต่างต้องมนต์โดยไม่รู้ตัว',
       gender: 'female',

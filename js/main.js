@@ -732,7 +732,10 @@
    * เงื่อนไข/ข้อความ/ผลลัพธ์ทั้งหมดอยู่ในไฟล์เหล่านั้น ตรงนี้เป็นแค่เครื่องประมวลผล
    * ------------------------------------------------------------------- */
   const APPEARANCE_EVENTS = window.EventTemplates || [];
-  const appearanceSeen = new Set();   // "evtId:personId" — คนเดิมไม่เจอเรื่องเดิมซ้ำ
+  /* "evtId:personId" -> เดือนที่เจอครั้งล่าสุด — เว้นครบ eventRepeatMonths แล้ว
+     จึงเจอซ้ำได้ ถ้าห้ามซ้ำถาวรอย่างเดิม คุณลักษณะแบบสะสมที่ต้องทำหลายครั้ง
+     แต่มีแหล่งสะสมน้อยกว่าเกณฑ์จะไปไม่ถึงตลอดกาล */
+  const appearanceSeen = new Map();
 
   /** แทนคำใน title/text/ข้อความผลลัพธ์ของอีเวนต์รูปโฉม */
   function fillAppearance(text, p, place, extra) {
@@ -898,17 +901,33 @@
     return 1 + (DESIRE.eventBoostMax - 1) * Math.min(1, top / DESIRE.peakAt);
   }
 
+  /**
+   * สุ่มอีเวนต์รูปโฉม — สุ่ม "รายคน" ไม่ใช่ครั้งเดียวทั้งตระกูล
+   * ถ้าสุ่มทีละเรื่องต่อทั้งตระกูล คนหนึ่งจะเจออีเวนต์หนึ่งครั้งทุกหลายสิบปี
+   * แล้วคุณลักษณะแบบสะสม (ต้องทำซ้ำหลายครั้ง) จะไม่มีวันครบเกณฑ์
+   * จำกัดไม่เกิน maxPerMonth เรื่องต่อเดือน กันคิวการตัดสินใจท่วม
+   */
   function rollAppearanceEvent() {
-    const chance = CONFIG.appearanceEventChance
-      * (1 + appearanceDrought * CONFIG.eventRampPerMonth) * desirePressure();
-    if (Math.random() >= chance) { appearanceDrought++; return; }
     if (!lineage.living().some((p) => p.isBlood)) return;
 
     const matches = [];
     lineage.living().forEach((p) => {
       if (p.age < CONFIG.adultAge) return;
+      // หลอดความต้องการของ "คนคนนั้นเอง" เป็นตัวเร่งโอกาสของเขา
+      const heat = 1 + (DESIRE.eventBoostMax - 1) * Math.min(1, (p.desire || 0) / DESIRE.peakAt);
+      const chance = CONFIG.appearanceEventChance * heat
+        * (1 + appearanceDrought * CONFIG.eventRampPerMonth);
+      if (Math.random() >= chance) return;
+
       APPEARANCE_EVENTS.forEach((evt) => {
-        if (appearanceSeen.has(evt.id + ':' + p.id)) return;
+        /* เคยเจอแล้วต้องเว้นช่วงก่อน แต่ถ้าเรื่องนั้นเข้าทางคุณลักษณะที่ตนมีอยู่
+           จะ "โหยหาสิ่งที่ตัวเองเคยทำ" แล้ววนกลับไปทำซ้ำเร็วกว่าปกติมาก */
+        const last = appearanceSeen.get(evt.id + ':' + p.id);
+        if (last != null) {
+          const craves = (evt.traitAffinity || []).some((id) => T.has(p, id));
+          const wait = CONFIG.eventRepeatMonths * (craves ? CONFIG.eventCravingFactor : 1);
+          if (game.state.month - last < wait) return;
+        }
         if (!appearanceEligible(p, evt.when)) return;
         if (evt.partner === 'inlaw') {
           const partners = inlawCandidates(p, evt);
@@ -921,16 +940,25 @@
     if (!matches.length) { appearanceDrought++; return; }   // ยังไม่มีใครเข้าเงื่อนไข — ทบโอกาสไว้
     appearanceDrought = 0;
 
-    /* คนที่มีคุณลักษณะตรงกับเรื่องนั้นจะเจอเรื่องแนวนั้นบ่อยขึ้นมาก
-       (evt.traitAffinity คือรายชื่อ trait ที่ "เข้าทาง" ของอีเวนต์นั้น)
-       และคนที่หลอดความต้องการใกล้เต็มก็ถูกหยิบขึ้นมาก่อนเช่นกัน */
-    const { p, evt, partner } = pickWeighted(matches, (mt) => {
-      const own = (mt.evt.traitAffinity || []).filter((id) => T.has(mt.p, id)).length;
-      const heat = Math.min(1, (mt.p.desire || 0) / DESIRE.peakAt);
-      return (1 + own * 1.8) * (1 + heat);
+    /* คนหนึ่งได้เรื่องเดียวต่อเดือน — เลือกเรื่องที่ "เข้าทาง" คุณลักษณะของเขา
+       บ่อยกว่าเรื่องอื่นมาก และทั้งเดือนเกิดได้ไม่เกิน maxPerMonth เรื่อง */
+    const byPerson = new Map();
+    matches.forEach((mt) => {
+      if (!byPerson.has(mt.p.id)) byPerson.set(mt.p.id, []);
+      byPerson.get(mt.p.id).push(mt);
     });
+    const chosen = Array.from(byPerson.values()).map((list) =>
+      pickWeighted(list, (mt) =>
+        1 + (mt.evt.traitAffinity || []).filter((id) => T.has(mt.p, id)).length * 1.8));
+    chosen.sort(() => Math.random() - 0.5);
+    chosen.slice(0, CONFIG.appearanceMaxPerMonth).forEach(fireAppearance);
+  }
+
+  /** เปิดกล่องถามผู้เล่นสำหรับอีเวนต์รูปโฉมหนึ่งเรื่อง */
+  function fireAppearance(mt) {
+    const p = mt.p, evt = mt.evt, partner = mt.partner;
     const place = P.pick(evt.places || ['กลางนคร']);
-    appearanceSeen.add(evt.id + ':' + p.id);
+    appearanceSeen.set(evt.id + ':' + p.id, game.state.month);
 
     // token เพิ่มเติมของคู่กรณี — คู่เขย/สะใภ้ หรือคนแปลกหน้าที่สุ่มขึ้นใหม่
     const tokens = {};
