@@ -39,6 +39,16 @@
       effects: { charm: 5, secret: 2.3, desire: 1.35, marriagePull: 1.3, exposeRep: 0.7 },
     },
     {
+      id: 'circleQueen', label: 'ราชินีแห่งวงล้อม',
+      desc: 'ชอบเป็นศูนย์กลางของวงที่มีบุรุษหลายคนพร้อมกัน และไม่ปิดบังความพอใจนั้น ' +
+        '(คู่ตรงข้ามของคุณลักษณะ「ฮาเร็ม」ฝั่งบุรุษ)',
+      gender: 'female',
+      heritable: 0.2,
+      relates: ['radiantOne', 'limelight', 'freeHeart', 'ardent', 'temptress'],
+      conflicts: ['onlyOne', 'devoted', 'tenderHeart'],
+      effects: { charm: 5, secret: 1.9, desire: 1.35, marriagePull: 1.2, exposeRep: 0.6 },
+    },
+    {
       id: 'eveningRose', label: 'กุหลาบยามสนธยา',
       desc: 'ยิ่งอายุมากยิ่งงามลึกซึ้ง ชายหนุ่มรุ่นหลังต่างต้องมนต์โดยไม่รู้ตัว',
       gender: 'female',

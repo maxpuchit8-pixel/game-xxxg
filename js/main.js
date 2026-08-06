@@ -866,9 +866,12 @@
         if (Math.random() >= CONFIG.maskConceiveChance) return;
         completeBirth(P.pick(men), mother, { secret: true, motherOnly: true, force: true });
       });
-      // บุรุษที่เป็นศูนย์กลางของวงสตรีสองคน — ค้นพบที่ทางของตน
+      // ศูนย์กลางของวง — ค้นพบที่ทางของตน และติดตัวออกไปนอกหอด้วย
       if (eff.haremIfCenterMale && p.gender === 'male' && women.length >= 2) {
         gainTrait(p, 'harem', 'เป็นศูนย์กลางของวงที่มีสตรีหลายคนพร้อมกัน');
+      }
+      if (eff.circleIfCenterFemale && p.gender === 'female' && men.length >= 2) {
+        gainTrait(p, 'circleQueen', 'เป็นศูนย์กลางของวงที่มีบุรุษหลายคนพร้อมกัน');
       }
     }
 

@@ -190,8 +190,8 @@
        ทางเลือกสุดท้ายอาจตั้งครรภ์กับคนแปลกหน้าที่ไม่มีวันปรากฏในผังตระกูล */
     {
       id: 'traitF-circle-of-eyes',
-      when: { gender: 'female', blood: true, trait: 'limelight', maxAge: 45 },
-      traitAffinity: ['limelight', 'radiantOne', 'freeHeart', 'ardent'],
+      when: { gender: 'female', blood: true, trait: ['limelight', 'circleQueen'], maxAge: 45 },
+      traitAffinity: ['limelight', 'radiantOne', 'freeHeart', 'ardent', 'circleQueen'],
       partner: 'stranger',
       group: [3, 5],
       places: ['คฤหาสน์ลับเขตบน', 'ห้องสังสรรค์ชั้นดาดฟ้าหอคอยใต้'],
@@ -248,7 +248,7 @@
     {
       id: 'traitF-bait-backfire',
       when: { gender: 'female', blood: true, trait: 'temptress', minDesire: 55, maxAge: 48 },
-      traitAffinity: ['temptress', 'radiantOne', 'ardent'],
+      traitAffinity: ['temptress', 'radiantOne', 'ardent', 'circleQueen'],
       partner: 'stranger',
       group: [2, 3],
       places: ['โรงเตี๊ยมชายขอบนคร', 'ลานมหรสพที่แน่นขนัด'],
