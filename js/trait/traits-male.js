@@ -23,6 +23,15 @@
       effects: { charm: 4, secret: 2.2, marriagePull: 1.2, desire: 1.4 },
     },
     {
+      id: 'harem', label: 'ฮาเร็ม',
+      desc: 'เคยเป็นศูนย์กลางของวงที่มีสตรีหลายคนพร้อมกัน และพบว่านั่นคือที่ทางของตน',
+      gender: 'male',
+      heritable: 0.2,
+      relates: ['wanderingBee', 'freeHeart', 'ardent', 'charmer'],
+      conflicts: ['onlyOne', 'devoted', 'loyalShadow'],
+      effects: { charm: 5, secret: 1.8, desire: 1.3, marriagePull: 1.2, exposeRep: 0.7 },
+    },
+    {
       id: 'ironGuard', label: 'ผู้พิทักษ์เรือน',
       desc: 'ยึดหน้าที่ปกป้องคนในตระกูลเหนือความสุขส่วนตน จนผู้คนยำเกรงและวางใจ',
       gender: 'male',

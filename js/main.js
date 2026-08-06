@@ -720,6 +720,7 @@
    * ------------------------------------------------------------------- */
 
   const MASK_CHAIN = window.MaskChain || [];
+  const MASK_TRIO = window.MaskChainTrio || [];
   const MASK_SPOTS = window.MaskPlaces || ['หอเริงรมย์หน้ากาก'];
 
   /** คนในหอที่จับคู่กับ p ได้ตามกติกาเดิมของเกม */
@@ -728,7 +729,7 @@
       x.id !== p.id &&
       x.gender !== p.gender &&
       x.age >= CONFIG.adultAge &&
-      !(x.mask && x.mask.partnerId && x.mask.partnerId !== p.id));
+      !(x.mask && x.mask.partnerIds && x.mask.partnerIds.indexOf(p.id) < 0));
   }
 
   function rollMaskChain() {
@@ -748,7 +749,7 @@
     hall.forEach((p) => {
       // เพิ่งจบบทไปหมาดๆ — พักก่อน ยังไม่เริ่มเรื่องใหม่กับใคร
       if (p.maskRestUntil && game.state.month < p.maskRestUntil) return;
-      if (!p.mask) p.mask = { stage: 0, partnerId: null, follower: false };
+      if (!p.mask) p.mask = { stage: 0, partnerIds: null, follower: false };
       if (p.mask.follower) return;             // อีกฝ่ายเป็นคนเดินเรื่องอยู่แล้ว
       if (p.mask.stage >= MASK_CHAIN.length) { p.mask = null; return; }
       if (Math.random() >= CONFIG.maskSceneChance) return;
@@ -757,42 +758,83 @@
     ready.sort(() => Math.random() - 0.5);
 
     ready.slice(0, CONFIG.maskMaxPerMonth).forEach((p) => {
-      let partner = p.mask.partnerId ? lineage.get(p.mask.partnerId) : null;
-      if (!partner || !partner.alive || !Places.placeOf(partner).anonymous) {
+      let mates = (p.mask.partnerIds || []).map(lineage.get)
+        .filter((x) => x && x.alive && Places.placeOf(x).anonymous);
+      if (!mates.length) {
         const pool = maskPartnersFor(p, hall);
         if (!pool.length) return;              // ยังไม่มีใครให้จับคู่ — รอไปก่อน
-        partner = pickWeighted(pool, (x) => T.mul(x, 'secret'));
-        p.mask.partnerId = partner.id;
-        partner.mask = { stage: p.mask.stage, partnerId: p.id, follower: true };
+        const first = pickWeighted(pool, (x) => T.mul(x, 'secret'));
+        mates = [first];
+        /* องค์ประกอบในหอลงตัวเป็นสองต่อหนึ่งเมื่อไร ก็เกิดวงสามคนได้
+           (ชายสองหญิงหนึ่ง หรือหญิงสองชายหนึ่ง) โดยฝ่ายที่มีคนเดียวเป็นศูนย์กลาง */
+        const rest = pool.filter((x) => x.id !== first.id);
+        if (rest.length && Math.random() < CONFIG.maskTrioChance) {
+          mates.push(pickWeighted(rest, (x) => T.mul(x, 'secret')));
+        }
+        p.mask.partnerIds = mates.map((x) => x.id);
+        mates.forEach((x) => {
+          x.mask = { stage: p.mask.stage, partnerIds: [p.id], follower: true };
+        });
       }
 
-      const scene = MASK_CHAIN[p.mask.stage];
+      const trio = mates.length > 1 && MASK_TRIO.length;
+      const chain = trio ? MASK_TRIO : MASK_CHAIN;
+      if (p.mask.stage >= chain.length) { endMaskChain(p, mates, true); return; }
+      const scene = chain[p.mask.stage];
       const place = P.pick(MASK_SPOTS);
       const fill = (t) => (t || '').split('{a}').join(nm(p))
-        .split('{b}').join(nm(partner)).split('{place}').join(place);
+        .split('{b}').join(mates[0] ? nm(mates[0]) : '')
+        .split('{c}').join(mates[1] ? nm(mates[1]) : '')
+        .split('{place}').join(place);
 
       ask({
         kind: 'appearance',
         title: fill(scene.title),
-        subject: `${p.name} · ฉากที่ ${p.mask.stage + 1}/${MASK_CHAIN.length}`,
+        subject: `${p.name} · ฉากที่ ${p.mask.stage + 1}/${chain.length}` +
+          (trio ? ' · วงสามคน' : ''),
         subjectId: 'mask:' + p.id,
         person: p,
         autoValue: scene.options[0].value,
         text: fill(scene.text),
         options: scene.options.map((o) => Object.assign({}, o, { label: fill(o.label) })),
-      }, (v) => resolveMaskScene(scene, v, p, partner, place, fill));
+      }, (v) => resolveMaskScene(scene, v, p, mates, place, fill, chain));
     });
   }
 
-  function resolveMaskScene(scene, value, p, partner, place, fill) {
+  /** จบบทของวง แล้วตั้งเวลาพักให้ทุกคนที่อยู่ในวงนั้น */
+  function endMaskChain(p, mates, finished) {
+    const rest = finished ? CONFIG.maskRestMonths : Math.round(CONFIG.maskRestMonths / 3);
+    [p].concat(mates || []).forEach((x) => {
+      if (!x) return;
+      x.mask = null;
+      x.maskRestUntil = game.state.month + rest;
+    });
+    if (finished) {
+      ui.logEvent(
+        `เรื่องของ${nm(p)}ในหอเริงรมย์จบลงเพียงเท่านี้ — ผ่านไปพักใหญ่กว่าจะมีคืนเช่นนั้นอีก`,
+        'event');
+    }
+  }
+
+  function resolveMaskScene(scene, value, p, mates, place, fill, chain) {
     const opt = scene.options.find((o) => o.value === value) || scene.options[0];
     const eff = opt.effect || {};
+    const group = [p].concat(mates);
 
-    if (eff.desire) p.desire = Math.max(0, Math.min(120, (p.desire || 0) + eff.desire));
-    if (eff.desire && partner) {
-      partner.desire = Math.max(0, Math.min(120, (partner.desire || 0) + eff.desire * 0.8));
+    // เลือกเข้าไปกับคนเดียว — อีกคนหลุดออกจากวง กลับเป็นบทสองคน
+    if (eff.splitOne && mates.length > 1) {
+      const dropped = mates.pop();
+      if (dropped) { dropped.mask = null; dropped.maskRestUntil = game.state.month + 6; }
+      p.mask.partnerIds = mates.map((x) => x.id);
     }
-    if (eff.passion && partner) relations.shift(p.id, partner.id, 'passion', eff.passion);
+
+    if (eff.desire) {
+      p.desire = Math.max(0, Math.min(120, (p.desire || 0) + eff.desire));
+      mates.forEach((x) => {
+        x.desire = Math.max(0, Math.min(120, (x.desire || 0) + eff.desire * 0.8));
+      });
+    }
+    if (eff.passion) mates.forEach((x) => relations.shift(p.id, x.id, 'passion', eff.passion));
     if (eff.text) ui.logEvent(fill(eff.text), 'secret');
 
     if (eff.trait) [].concat(eff.trait).forEach((id) => gainTrait(p, id, eff.traitStory));
@@ -800,53 +842,41 @@
       [].concat(eff.tally).forEach((t) => tallyTrait(p, t.key || t.trait, t.trait, t.need, t.story));
     }
 
-    // ตั้งครรภ์ — ฝ่ายหญิงในคู่นี้ ตามกติกาบุตรลับปกติ
-    if (eff.conceive && partner) {
-      const mother = p.gender === 'female' ? p : partner;
-      const father = p.gender === 'male' ? p : partner;
-      /* การตั้งครรภ์ในหอเป็นกฎที่ใหญ่ที่สุด — เพดานบุตรสูงสุดและช่วงวัยเจริญพันธุ์
-         ซึ่งเป็นค่าปรับสมดุลของเกม กั้นไม่ได้ เหลือเพียงเงื่อนไขเดียวคือยังไม่ตั้งครรภ์ */
-      if (!mother.pregnancy && mother.age >= CONFIG.adultAge
-          && Math.random() < CONFIG.maskConceiveChance) {
-        // เกิดในหอที่ไม่มีใครรู้จักใคร — เด็กเป็นของมารดาผู้เดียว ไม่ผูกกับสามี
-        completeBirth(father, mother, { secret: true, motherOnly: true, force: true });
-      }
-    }
-
-    // ถอดหน้ากาก — จากคนแปลกหน้ากลายเป็นความสัมพันธ์ที่มีชื่อมีหน้า
-    // ถอดหน้ากากแล้วต้องขึ้นทะเบียนเป็นคู่ลับให้ได้เสมอ ไม่มีเงื่อนไขใดมากั้น
-    if (eff.reveal && partner) {
-      lineage.addSecret(p.id, partner.id, game.state.month);
-      relations.shift(p.id, partner.id, 'closeness', 20);
-      structureDirty = true;
-      P.remember(p, { kind: 'unmasked', month: game.state.month, aboutId: partner.id, weight: 2,
-        text: `ถอดหน้ากากแล้วพบว่าคืนนั้นคือ${partner.name}` });
-      P.remember(partner, { kind: 'unmasked', month: game.state.month, aboutId: p.id, weight: 2,
-        text: `ถูก${p.name}ถอดหน้ากากดูในคืนที่หอเริงรมย์` });
-    }
-
-    /* จบบทเมื่อไรก็พักก่อนทั้งคู่ ไม่ว่าจะถอนตัวกลางทางหรือไปจนจบฉากสุดท้าย
-       ถ้าไม่พัก บทใหม่จะเริ่มต่อทันทีจนกลายเป็นวงจรไม่รู้จบ */
-    /* จบครบบทแล้วพักเต็มเวลา ส่วนถอนตัวกลางทางพักสั้นกว่ามาก
-       ไม่งั้นแค่ปฏิเสธฉากแรกก็โดนล็อกไปหลายปีทั้งที่ยังไม่ได้เกิดอะไรเลย */
-    const endChain = (finished) => {
-      const rest = finished ? CONFIG.maskRestMonths : Math.round(CONFIG.maskRestMonths / 3);
-      [p, partner].forEach((x) => {
-        if (!x) return;
-        x.mask = null;
-        x.maskRestUntil = game.state.month + rest;
+    /* ตั้งครรภ์ — สตรีทุกคนในวงมีโอกาสของตัวเอง
+       ศูนย์กลางเป็นบุรุษ: สตรีทั้งสองคนตั้งครรภ์ได้แยกกัน
+       ศูนย์กลางเป็นสตรี: บิดาแท้จริงคือหนึ่งในบุรุษของวง ซึ่งไม่มีใครในเรื่องรู้ */
+    if (eff.conceive) {
+      const women = group.filter((x) => x.gender === 'female');
+      const men = group.filter((x) => x.gender === 'male');
+      women.forEach((mother) => {
+        if (mother.pregnancy || mother.age < CONFIG.adultAge || !men.length) return;
+        if (Math.random() >= CONFIG.maskConceiveChance) return;
+        completeBirth(P.pick(men), mother, { secret: true, motherOnly: true, force: true });
       });
-      if (finished) {
-        ui.logEvent(
-          `เรื่องของ${nm(p)}ในหอเริงรมย์จบลงเพียงเท่านี้ — ผ่านไปพักใหญ่กว่าจะมีคืนเช่นนั้นอีก`,
-          'event');
+      // บุรุษที่เป็นศูนย์กลางของวงสตรีสองคน — ค้นพบที่ทางของตน
+      if (eff.haremIfCenterMale && p.gender === 'male' && women.length >= 2) {
+        gainTrait(p, 'harem', 'เป็นศูนย์กลางของวงที่มีสตรีหลายคนพร้อมกัน');
       }
-    };
+    }
 
-    if (eff.leave) { endChain(scene === MASK_CHAIN[MASK_CHAIN.length - 1]); return; }
+    // ถอดหน้ากาก — ขึ้นทะเบียนเป็นคู่ลับกับทุกคนในวง ไม่มีเงื่อนไขใดมากั้น
+    if (eff.reveal) {
+      mates.forEach((x) => {
+        lineage.addSecret(p.id, x.id, game.state.month);
+        relations.shift(p.id, x.id, 'closeness', 20);
+        P.remember(p, { kind: 'unmasked', month: game.state.month, aboutId: x.id, weight: 2,
+          text: `ถอดหน้ากากแล้วพบว่าคืนนั้นคือ${x.name}` });
+        P.remember(x, { kind: 'unmasked', month: game.state.month, aboutId: p.id, weight: 2,
+          text: `ถูก${p.name}ถอดหน้ากากดูในคืนที่หอเริงรมย์` });
+      });
+      structureDirty = true;
+    }
+
+    const last = chain[chain.length - 1];
+    if (eff.leave) { endMaskChain(p, mates, scene === last); return; }
     p.mask.stage += 1;
-    if (partner && partner.mask) partner.mask.stage = p.mask.stage;
-    if (p.mask.stage >= MASK_CHAIN.length) endChain(true);
+    mates.forEach((x) => { if (x.mask) x.mask.stage = p.mask.stage; });
+    if (p.mask.stage >= chain.length) endMaskChain(p, mates, true);
   }
 
   /* ---------------------------------------------------------------------
