@@ -755,6 +755,19 @@
       if (Math.random() >= CONFIG.maskSceneChance) return;
       ready.push(p);
     });
+    /* คนเริ่มเรื่องต้องเป็น "ฝ่ายที่มีคนเดียว" เสมอ
+       ในหอมีชายสองหญิงหนึ่ง → หญิงคนนั้นเป็นคนเริ่มและเป็นศูนย์กลางของวง
+       ถ้าปล่อยให้ฝ่ายที่มีหลายคนเริ่ม จะได้แค่คู่ธรรมดาและอีกคนถูกทิ้งไว้ข้างนอก */
+    const free = hall.filter((x) =>
+      !(x.maskRestUntil && game.state.month < x.maskRestUntil) &&
+      (!x.mask || (!x.mask.follower && !(x.mask.partnerIds && x.mask.partnerIds.length))));
+    const males = free.filter((x) => x.gender === 'male').length;
+    const females = free.filter((x) => x.gender === 'female').length;
+    if (males && females && males !== females) {
+      const lone = males < females ? 'male' : 'female';
+      const loners = ready.filter((x) => x.gender === lone);
+      if (loners.length) { ready.length = 0; ready.push.apply(ready, loners); }
+    }
     ready.sort(() => Math.random() - 0.5);
 
     ready.slice(0, CONFIG.maskMaxPerMonth).forEach((p) => {
