@@ -743,12 +743,20 @@
     });
     if (!hall.length) return;
 
+    /* เลือกไว้ก่อนว่าใครจะได้ฉากในเดือนนี้ แล้วจำกัดจำนวนต่อเดือน
+       ถ้าปล่อยให้ทุกคนในหอสุ่มฉากของตัวเอง กล่องตัดสินใจจะเด้งไม่หยุด
+       จนช่วงพักหลังตอบไม่มีความหมายและผู้เล่นทำอย่างอื่นไม่ได้เลย */
+    const ready = [];
     hall.forEach((p) => {
       if (!p.mask) p.mask = { stage: 0, partnerId: null, follower: false };
       if (p.mask.follower) return;             // อีกฝ่ายเป็นคนเดินเรื่องอยู่แล้ว
       if (p.mask.stage >= MASK_CHAIN.length) { p.mask = null; return; }
       if (Math.random() >= CONFIG.maskSceneChance) return;
+      ready.push(p);
+    });
+    ready.sort(() => Math.random() - 0.5);
 
+    ready.slice(0, CONFIG.maskMaxPerMonth).forEach((p) => {
       let partner = p.mask.partnerId ? lineage.get(p.mask.partnerId) : null;
       if (!partner || !partner.alive || !Places.placeOf(partner).anonymous) {
         const pool = maskPartnersFor(p, hall);
