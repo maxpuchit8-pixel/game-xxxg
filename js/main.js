@@ -739,7 +739,7 @@
 
     // ออกจากหอแล้วบทจบทันที กลับเข้ามาใหม่ก็เริ่มบทใหม่
     lineage.living().forEach((x) => {
-      if (x.mask && !Places.placeOf(x).anonymous) x.mask = null;
+      if (!Places.placeOf(x).anonymous) { x.mask = null; x.maskRestUntil = 0; }
     });
     if (!hall.length) return;
 
@@ -748,6 +748,8 @@
        จนช่วงพักหลังตอบไม่มีความหมายและผู้เล่นทำอย่างอื่นไม่ได้เลย */
     const ready = [];
     hall.forEach((p) => {
+      // เพิ่งจบบทไปหมาดๆ — พักก่อน ยังไม่เริ่มเรื่องใหม่กับใคร
+      if (p.maskRestUntil && game.state.month < p.maskRestUntil) return;
       if (!p.mask) p.mask = { stage: 0, partnerId: null, follower: false };
       if (p.mask.follower) return;             // อีกฝ่ายเป็นคนเดินเรื่องอยู่แล้ว
       if (p.mask.stage >= MASK_CHAIN.length) { p.mask = null; return; }
@@ -825,17 +827,28 @@
         text: `ถูก${p.name}ถอดหน้ากากดูในคืนที่หอเริงรมย์` });
     }
 
-    if (eff.leave) {
-      if (partner) partner.mask = null;
-      p.mask = null;
-      return;
-    }
+    /* จบบทเมื่อไรก็พักก่อนทั้งคู่ ไม่ว่าจะถอนตัวกลางทางหรือไปจนจบฉากสุดท้าย
+       ถ้าไม่พัก บทใหม่จะเริ่มต่อทันทีจนกลายเป็นวงจรไม่รู้จบ */
+    /* จบครบบทแล้วพักเต็มเวลา ส่วนถอนตัวกลางทางพักสั้นกว่ามาก
+       ไม่งั้นแค่ปฏิเสธฉากแรกก็โดนล็อกไปหลายปีทั้งที่ยังไม่ได้เกิดอะไรเลย */
+    const endChain = (finished) => {
+      const rest = finished ? CONFIG.maskRestMonths : Math.round(CONFIG.maskRestMonths / 3);
+      [p, partner].forEach((x) => {
+        if (!x) return;
+        x.mask = null;
+        x.maskRestUntil = game.state.month + rest;
+      });
+      if (finished) {
+        ui.logEvent(
+          `เรื่องของ${nm(p)}ในหอเริงรมย์จบลงเพียงเท่านี้ — ผ่านไปพักใหญ่กว่าจะมีคืนเช่นนั้นอีก`,
+          'event');
+      }
+    };
+
+    if (eff.leave) { endChain(scene === MASK_CHAIN[MASK_CHAIN.length - 1]); return; }
     p.mask.stage += 1;
     if (partner && partner.mask) partner.mask.stage = p.mask.stage;
-    if (p.mask.stage >= MASK_CHAIN.length) {
-      if (partner) partner.mask = null;
-      p.mask = null;
-    }
+    if (p.mask.stage >= MASK_CHAIN.length) endChain(true);
   }
 
   /* ---------------------------------------------------------------------
