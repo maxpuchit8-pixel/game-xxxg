@@ -728,8 +728,6 @@
       x.id !== p.id &&
       x.gender !== p.gender &&
       x.age >= CONFIG.adultAge &&
-      !(p.isBlood && x.isBlood) &&
-      !lineage.isDirectLine(p, x) &&
       !(x.mask && x.mask.partnerId && x.mask.partnerId !== p.id));
   }
 
